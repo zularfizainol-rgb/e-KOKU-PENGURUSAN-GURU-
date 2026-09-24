@@ -406,7 +406,13 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   if (catUnits.length === 0) return null;
 
                   let catMorningTotal = 0;
+                  let catMorningMale = 0;
+                  let catMorningFemale = 0;
+
                   let catAfternoonTotal = 0;
+                  let catAfternoonMale = 0;
+                  let catAfternoonFemale = 0;
+
                   let catGrandTotal = 0;
 
                   return (
@@ -421,10 +427,10 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                           <tr className="bg-slate-200 text-slate-900 font-bold uppercase text-center">
                             <th className="border border-slate-400 py-1.5 px-2 w-8">Bil</th>
                             <th className="border border-slate-400 py-1.5 px-3 text-left">Nama Unit Kokurikulum</th>
-                            <th className="border border-slate-400 py-1.5 px-2 w-16">Kod</th>
-                            <th className="border border-slate-400 py-1.5 px-2 w-16">Guru Pagi</th>
-                            <th className="border border-slate-400 py-1.5 px-2 w-16">Guru Petang</th>
-                            <th className="border border-slate-400 py-1.5 px-2 w-16">Jumlah</th>
+                            <th className="border border-slate-400 py-1.5 px-2 w-14">Kod</th>
+                            <th className="border border-slate-400 py-1.5 px-2 w-20">Guru Pagi (L/P)</th>
+                            <th className="border border-slate-400 py-1.5 px-2 w-20">Guru Petang (L/P)</th>
+                            <th className="border border-slate-400 py-1.5 px-2 w-20">Jumlah (L/P)</th>
                             <th className="border border-slate-400 py-1.5 px-2 text-left">Ketua Guru Penasihat</th>
                             <th className="border border-slate-400 py-1.5 px-2 text-left">Setiausaha</th>
                           </tr>
@@ -432,13 +438,31 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                         <tbody>
                           {catUnits.map((u, i) => {
                             const uAssigns = assignments.filter(a => a.unitId === u.id);
-                            const m = uAssigns.filter(a => a.session === 'Pagi').length;
-                            const a = uAssigns.filter(a => a.session === 'Petang').length;
+                            const morningAssigns = uAssigns.filter(a => a.session === 'Pagi');
+                            const afternoonAssigns = uAssigns.filter(a => a.session === 'Petang');
+
+                            const m = morningAssigns.length;
+                            const mL = morningAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+                            const mP = morningAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
+
+                            const a = afternoonAssigns.length;
+                            const aL = afternoonAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+                            const aP = afternoonAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
+
+                            const totalL = uAssigns.filter(asg => teacherMap.get(asg.teacherId)?.gender === 'L').length;
+                            const totalP = uAssigns.filter(asg => teacherMap.get(asg.teacherId)?.gender === 'P').length;
+
                             const ketua = uAssigns.find(asg => asg.role === 'Ketua Guru Penasihat');
                             const su = uAssigns.find(asg => asg.role === 'Setiausaha');
 
                             catMorningTotal += m;
+                            catMorningMale += mL;
+                            catMorningFemale += mP;
+
                             catAfternoonTotal += a;
+                            catAfternoonMale += aL;
+                            catAfternoonFemale += aP;
+
                             catGrandTotal += uAssigns.length;
 
                             return (
@@ -446,9 +470,15 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                                 <td className="border border-slate-300 py-1.5 px-2 text-center font-bold">{i + 1}</td>
                                 <td className="border border-slate-300 py-1.5 px-3 font-semibold text-slate-900">{u.name}</td>
                                 <td className="border border-slate-300 py-1.5 px-2 text-center font-mono font-bold text-slate-600">{u.code}</td>
-                                <td className="border border-slate-300 py-1.5 px-2 text-center font-bold text-amber-900">{m}</td>
-                                <td className="border border-slate-300 py-1.5 px-2 text-center font-bold text-indigo-900">{a}</td>
-                                <td className="border border-slate-300 py-1.5 px-2 text-center font-black text-slate-900">{uAssigns.length}</td>
+                                <td className="border border-slate-300 py-1.5 px-2 text-center font-bold text-amber-900">
+                                  {m} <span className="text-[9px] font-normal text-slate-500">({mL}L/{mP}P)</span>
+                                </td>
+                                <td className="border border-slate-300 py-1.5 px-2 text-center font-bold text-indigo-900">
+                                  {a} <span className="text-[9px] font-normal text-slate-500">({aL}L/{aP}P)</span>
+                                </td>
+                                <td className="border border-slate-300 py-1.5 px-2 text-center font-black text-slate-900">
+                                  {uAssigns.length} <span className="text-[9px] font-normal text-slate-500">({totalL}L/{totalP}P)</span>
+                                </td>
                                 <td className="border border-slate-300 py-1.5 px-2">
                                   {ketua ? (
                                     <span className="font-semibold text-slate-800">
@@ -476,9 +506,15 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                             <td colSpan={3} className="border border-slate-300 py-1.5 px-3 text-right uppercase text-[10px]">
                               Subjumlah {catConfig.title}:
                             </td>
-                            <td className="border border-slate-300 py-1.5 px-2 text-center font-black text-amber-900 text-[10px]">{catMorningTotal}</td>
-                            <td className="border border-slate-300 py-1.5 px-2 text-center font-black text-indigo-900 text-[10px]">{catAfternoonTotal}</td>
-                            <td className="border border-slate-300 py-1.5 px-2 text-center font-black text-slate-900 text-[10px]">{catGrandTotal}</td>
+                            <td className="border border-slate-300 py-1.5 px-2 text-center font-black text-amber-900 text-[10px]">
+                              {catMorningTotal} <span className="text-[9px] font-normal">({catMorningMale}L/{catMorningFemale}P)</span>
+                            </td>
+                            <td className="border border-slate-300 py-1.5 px-2 text-center font-black text-indigo-900 text-[10px]">
+                              {catAfternoonTotal} <span className="text-[9px] font-normal">({catAfternoonMale}L/{catAfternoonFemale}P)</span>
+                            </td>
+                            <td className="border border-slate-300 py-1.5 px-2 text-center font-black text-slate-900 text-[10px]">
+                              {catGrandTotal}
+                            </td>
                             <td colSpan={2} className="border border-slate-300 py-1.5 px-2 text-slate-500 italic text-[9px]">
                               {catUnits.length} unit berdaftar
                             </td>
@@ -502,8 +538,8 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                           <th className="py-1.5 px-2 w-8 border-r border-slate-300">Bil</th>
                           <th className="py-1.5 px-3 text-left border-r border-slate-300">Kategori Unit</th>
                           <th className="py-1.5 px-2 w-20 border-r border-slate-300">Bilangan Unit</th>
-                          <th className="py-1.5 px-2 w-24 border-r border-slate-300">Guru Sesi Pagi</th>
-                          <th className="py-1.5 px-2 w-24 border-r border-slate-300">Guru Sesi Petang</th>
+                          <th className="py-1.5 px-2 w-28 border-r border-slate-300">Guru Sesi Pagi</th>
+                          <th className="py-1.5 px-2 w-28 border-r border-slate-300">Guru Sesi Petang</th>
                           <th className="py-1.5 px-2 w-24">Jumlah Agihan</th>
                         </tr>
                       </thead>
@@ -512,16 +548,28 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                           const catUnits = units.filter(u => u.category === cat.category);
                           const catUnitIds = new Set(catUnits.map(u => u.id));
                           const catAssigns = assignments.filter(a => catUnitIds.has(a.unitId));
-                          const mCount = catAssigns.filter(a => a.session === 'Pagi').length;
-                          const aCount = catAssigns.filter(a => a.session === 'Petang').length;
+                          const mAssigns = catAssigns.filter(a => a.session === 'Pagi');
+                          const aAssigns = catAssigns.filter(a => a.session === 'Petang');
+
+                          const mCount = mAssigns.length;
+                          const mLCount = mAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+                          const mPCount = mAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
+
+                          const aCount = aAssigns.length;
+                          const aLCount = aAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+                          const aPCount = aAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
 
                           return (
                             <tr key={cat.category} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                               <td className="py-1.5 px-2 text-center font-bold border-r border-slate-300 border-b border-slate-200">{idx + 1}</td>
                               <td className="py-1.5 px-3 font-semibold text-slate-900 border-r border-slate-300 border-b border-slate-200">{cat.title}</td>
                               <td className="py-1.5 px-2 text-center font-bold text-slate-700 border-r border-slate-300 border-b border-slate-200">{catUnits.length}</td>
-                              <td className="py-1.5 px-2 text-center font-bold text-amber-900 border-r border-slate-300 border-b border-slate-200">{mCount}</td>
-                              <td className="py-1.5 px-2 text-center font-bold text-indigo-900 border-r border-slate-300 border-b border-slate-200">{aCount}</td>
+                              <td className="py-1.5 px-2 text-center font-bold text-amber-900 border-r border-slate-300 border-b border-slate-200">
+                                {mCount} <span className="text-[9px] font-normal text-slate-500">({mLCount}L/{mPCount}P)</span>
+                              </td>
+                              <td className="py-1.5 px-2 text-center font-bold text-indigo-900 border-r border-slate-300 border-b border-slate-200">
+                                {aCount} <span className="text-[9px] font-normal text-slate-500">({aLCount}L/{aPCount}P)</span>
+                              </td>
                               <td className="py-1.5 px-2 text-center font-black text-slate-900 border-b border-slate-200">{catAssigns.length}</td>
                             </tr>
                           );
@@ -529,8 +577,12 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                         <tr className="bg-slate-100 text-slate-900 font-black border-t-2 border-slate-400">
                           <td colSpan={2} className="py-2 px-3 text-right uppercase border-r border-slate-300">JUMLAH KESELURUHAN:</td>
                           <td className="py-2 px-2 text-center border-r border-slate-300">{units.length}</td>
-                          <td className="py-2 px-2 text-center text-amber-900 border-r border-slate-300">{assignments.filter(a => a.session === 'Pagi').length}</td>
-                          <td className="py-2 px-2 text-center text-indigo-900 border-r border-slate-300">{assignments.filter(a => a.session === 'Petang').length}</td>
+                          <td className="py-2 px-2 text-center text-amber-900 border-r border-slate-300">
+                            {assignments.filter(a => a.session === 'Pagi').length}
+                          </td>
+                          <td className="py-2 px-2 text-center text-indigo-900 border-r border-slate-300">
+                            {assignments.filter(a => a.session === 'Petang').length}
+                          </td>
                           <td className="py-2 px-2 text-center text-emerald-800 text-xs">{assignments.length}</td>
                         </tr>
                       </tbody>

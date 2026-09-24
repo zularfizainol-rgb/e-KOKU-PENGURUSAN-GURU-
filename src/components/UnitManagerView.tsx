@@ -621,7 +621,7 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                       value={t.id}
                       disabled={isAlreadyInUnit}
                     >
-                      [{t.session}] {t.name} ({t.grade || 'DG41'}) {isAlreadyInUnit ? '✓ (Sudah dalam unit ini)' : `[${tAssigns.length} Unit Dipegang]`}
+                      [{t.session}] {t.name} {isAlreadyInUnit ? '✓ (Sudah dalam unit ini)' : `[${tAssigns.length} Unit Dipegang]`}
                     </option>
                   );
                 })}
@@ -764,7 +764,7 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                             </span>
                           </div>
                           <div className="text-xs text-slate-500 font-mono mt-0.5">
-                            ID: {teacher.staffId} • Gred: <span className="font-semibold text-slate-700 dark:text-slate-300">{teacher.grade || 'DG41'}</span>
+                            ID: {teacher.staffId}
                           </div>
                         </td>
 

@@ -103,7 +103,15 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
   // Overall metrics
   const totalTeachers = teachers.length;
   const morningTeachers = teachers.filter(t => t.session === 'Pagi').length;
+  const morningMaleTeachers = teachers.filter(t => t.session === 'Pagi' && t.gender === 'L').length;
+  const morningFemaleTeachers = teachers.filter(t => t.session === 'Pagi' && t.gender === 'P').length;
+
   const afternoonTeachers = teachers.filter(t => t.session === 'Petang').length;
+  const afternoonMaleTeachers = teachers.filter(t => t.session === 'Petang' && t.gender === 'L').length;
+  const afternoonFemaleTeachers = teachers.filter(t => t.session === 'Petang' && t.gender === 'P').length;
+
+  const totalMaleTeachers = teachers.filter(t => t.gender === 'L').length;
+  const totalFemaleTeachers = teachers.filter(t => t.gender === 'P').length;
 
   // Fully assigned check (4 core units complete)
   const completeTeachersCount = useMemo(() => {
@@ -150,15 +158,22 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
 
   // Statistik pecahan mengikut setiap kategori (dalam turutan yang betul)
   const categoryStats = useMemo(() => {
-    const unitMap = new Map(units.map(u => [u.id, u]));
-
     return CATEGORY_STAT_SEQUENCE.map(cat => {
       const catUnits = units.filter(u => u.category === cat.category);
       const catUnitIds = new Set(catUnits.map(u => u.id));
       const catAssigns = assignments.filter(a => catUnitIds.has(a.unitId));
 
-      const morning = catAssigns.filter(a => a.session === 'Pagi').length;
-      const afternoon = catAssigns.filter(a => a.session === 'Petang').length;
+      const morningAssigns = catAssigns.filter(a => a.session === 'Pagi');
+      const afternoonAssigns = catAssigns.filter(a => a.session === 'Petang');
+
+      const morning = morningAssigns.length;
+      const morningMale = morningAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+      const morningFemale = morningAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
+
+      const afternoon = afternoonAssigns.length;
+      const afternoonMale = afternoonAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+      const afternoonFemale = afternoonAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
+
       const ketua = catAssigns.filter(a => a.role === 'Ketua Guru Penasihat').length;
       const su = catAssigns.filter(a => a.role === 'Setiausaha').length;
 
@@ -167,12 +182,16 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
         totalUnits: catUnits.length,
         totalTeachers: catAssigns.length,
         morningTeachers: morning,
+        morningMale,
+        morningFemale,
         afternoonTeachers: afternoon,
+        afternoonMale,
+        afternoonFemale,
         ketuaCount: ketua,
         suCount: su,
       };
     });
-  }, [units, assignments]);
+  }, [units, assignments, teacherMap]);
 
   return (
     <div className="space-y-6">
@@ -222,16 +241,19 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white mt-2">
-            {totalTeachers}
+          <div className="text-2xl font-black text-slate-900 dark:text-white mt-2 flex items-baseline gap-2">
+            <span>{totalTeachers}</span>
+            <span className="text-xs font-bold text-slate-400">
+              ({totalMaleTeachers}L • {totalFemaleTeachers}P)
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
-            <span className="text-amber-600 font-semibold flex items-center gap-0.5">
-              <Sun className="w-3 h-3" /> Pagi: {morningTeachers}
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1 flex-wrap">
+            <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-0.5">
+              <Sun className="w-3 h-3" /> Pagi: <b>{morningTeachers}</b> ({morningMaleTeachers}L/{morningFemaleTeachers}P)
             </span>
             <span>•</span>
-            <span className="text-indigo-600 font-semibold flex items-center gap-0.5">
-              <Sunset className="w-3 h-3" /> Petang: {afternoonTeachers}
+            <span className="text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-0.5">
+              <Sunset className="w-3 h-3" /> Petang: <b>{afternoonTeachers}</b> ({afternoonMaleTeachers}L/{afternoonFemaleTeachers}P)
             </span>
           </div>
         </div>
@@ -327,8 +349,12 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
                 </span>
               </div>
               <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] font-semibold text-slate-500">
-                <span className="text-amber-600 dark:text-amber-400">Pagi: {cat.morningTeachers}</span>
-                <span className="text-indigo-600 dark:text-indigo-400">Ptg: {cat.afternoonTeachers}</span>
+                <span className="text-amber-600 dark:text-amber-400">
+                  Pagi: <b>{cat.morningTeachers}</b> ({cat.morningMale}L/{cat.morningFemale}P)
+                </span>
+                <span className="text-indigo-600 dark:text-indigo-400">
+                  Ptg: <b>{cat.afternoonTeachers}</b> ({cat.afternoonMale}L/{cat.afternoonFemale}P)
+                </span>
               </div>
             </div>
           ))}
@@ -387,15 +413,30 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
                 <th className="py-3 px-3 w-12 text-center">Bil</th>
                 <th className="py-3 px-4 min-w-[220px]">Nama Unit &amp; Kod</th>
                 <th className="py-3 px-3 min-w-[150px]">Kategori Unit</th>
-                <th className="py-3 px-3 text-center min-w-[90px] bg-amber-50/50 dark:bg-amber-950/20">
-                  <Sun className="w-3.5 h-3.5 inline mr-1 text-amber-500" />
-                  Guru Pagi
+                <th className="py-3 px-3 text-center min-w-[110px] bg-amber-50/50 dark:bg-amber-950/20">
+                  <div className="flex items-center justify-center gap-1">
+                    <Sun className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Guru Pagi</span>
+                  </div>
+                  <div className="text-[9px] font-bold text-amber-700/80 dark:text-amber-400 mt-0.5 normal-case">
+                    (Lelaki / Perempuan)
+                  </div>
                 </th>
-                <th className="py-3 px-3 text-center min-w-[90px] bg-indigo-50/50 dark:bg-indigo-950/20">
-                  <Sunset className="w-3.5 h-3.5 inline mr-1 text-indigo-500" />
-                  Guru Petang
+                <th className="py-3 px-3 text-center min-w-[110px] bg-indigo-50/50 dark:bg-indigo-950/20">
+                  <div className="flex items-center justify-center gap-1">
+                    <Sunset className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Guru Petang</span>
+                  </div>
+                  <div className="text-[9px] font-bold text-indigo-700/80 dark:text-indigo-400 mt-0.5 normal-case">
+                    (Lelaki / Perempuan)
+                  </div>
                 </th>
-                <th className="py-3 px-3 text-center min-w-[80px]">Jumlah</th>
+                <th className="py-3 px-3 text-center min-w-[90px]">
+                  <div>Jumlah</div>
+                  <div className="text-[9px] font-bold text-slate-400 mt-0.5 normal-case">
+                    (L / P)
+                  </div>
+                </th>
                 <th className="py-3 px-3 min-w-[180px]">Ketua Guru Penasihat</th>
                 <th className="py-3 px-3 min-w-[180px]">Setiausaha</th>
               </tr>
@@ -410,9 +451,19 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
               ) : (
                 filteredUnits.map((unit, idx) => {
                   const uAssigns = assignments.filter(a => a.unitId === unit.id);
-                  const morning = uAssigns.filter(a => a.session === 'Pagi').length;
-                  const afternoon = uAssigns.filter(a => a.session === 'Petang').length;
+                  const morningAssigns = uAssigns.filter(a => a.session === 'Pagi');
+                  const morning = morningAssigns.length;
+                  const morningMale = morningAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+                  const morningFemale = morningAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
+
+                  const afternoonAssigns = uAssigns.filter(a => a.session === 'Petang');
+                  const afternoon = afternoonAssigns.length;
+                  const afternoonMale = afternoonAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+                  const afternoonFemale = afternoonAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
+
                   const total = uAssigns.length;
+                  const totalMale = uAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'L').length;
+                  const totalFemale = uAssigns.filter(a => teacherMap.get(a.teacherId)?.gender === 'P').length;
 
                   const ketua = uAssigns.find(a => a.role === 'Ketua Guru Penasihat');
                   const ketuaTeacher = ketua ? teacherMap.get(ketua.teacherId) : null;
@@ -462,18 +513,49 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
                         </td>
 
                         {/* Sesi Pagi */}
-                        <td className="py-3 px-3 text-center bg-amber-50/30 dark:bg-amber-950/10 font-black text-amber-900 dark:text-amber-200">
-                          {morning}
+                        <td className="py-3 px-3 text-center bg-amber-50/30 dark:bg-amber-950/10">
+                          <div className="font-black text-amber-900 dark:text-amber-200 text-sm">
+                            {morning}
+                          </div>
+                          <div className="flex items-center justify-center gap-1 text-[10px] font-bold mt-0.5">
+                            <span className="text-blue-700 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-950/80 px-1.5 py-0.2 rounded" title={`${morningMale} Guru Lelaki Sesi Pagi`}>
+                              {morningMale}L
+                            </span>
+                            <span className="text-rose-700 dark:text-rose-300 bg-rose-100/70 dark:bg-rose-950/80 px-1.5 py-0.2 rounded" title={`${morningFemale} Guru Perempuan Sesi Pagi`}>
+                              {morningFemale}P
+                            </span>
+                          </div>
                         </td>
 
                         {/* Sesi Petang */}
-                        <td className="py-3 px-3 text-center bg-indigo-50/30 dark:bg-indigo-950/10 font-black text-indigo-900 dark:text-indigo-200">
-                          {afternoon}
+                        <td className="py-3 px-3 text-center bg-indigo-50/30 dark:bg-indigo-950/10">
+                          <div className="font-black text-indigo-900 dark:text-indigo-200 text-sm">
+                            {afternoon}
+                          </div>
+                          <div className="flex items-center justify-center gap-1 text-[10px] font-bold mt-0.5">
+                            <span className="text-blue-700 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-950/80 px-1.5 py-0.2 rounded" title={`${afternoonMale} Guru Lelaki Sesi Petang`}>
+                              {afternoonMale}L
+                            </span>
+                            <span className="text-rose-700 dark:text-rose-300 bg-rose-100/70 dark:bg-rose-950/80 px-1.5 py-0.2 rounded" title={`${afternoonFemale} Guru Perempuan Sesi Petang`}>
+                              {afternoonFemale}P
+                            </span>
+                          </div>
                         </td>
 
                         {/* Jumlah */}
-                        <td className="py-3 px-3 text-center font-black text-slate-900 dark:text-white text-xs">
-                          {total}
+                        <td className="py-3 px-3 text-center">
+                          <div className="font-black text-slate-900 dark:text-white text-sm">
+                            {total}
+                          </div>
+                          <div className="flex items-center justify-center gap-1 text-[10px] font-bold mt-0.5">
+                            <span className="text-blue-700 dark:text-blue-300" title={`${totalMale} Guru Lelaki`}>
+                              {totalMale}L
+                            </span>
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span className="text-rose-700 dark:text-rose-300" title={`${totalFemale} Guru Perempuan`}>
+                              {totalFemale}P
+                            </span>
+                          </div>
                         </td>
 
                         {/* Ketua Guru Penasihat */}
