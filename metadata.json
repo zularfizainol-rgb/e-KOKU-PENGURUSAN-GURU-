@@ -1,0 +1,6 @@
+{
+  "name": "e-Koku Pengurusan GPK Kokurikulum",
+  "description": "Sistem Pengurusan dan Agihan Guru Kokurikulum Sekolah bagi GPK Kokurikulum dengan integrasi Google Sheets & cetakan PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
