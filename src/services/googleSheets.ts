@@ -1,5 +1,5 @@
 import { Teacher, UnitAssignment, KokuUnit, SchoolSettings, RoleType, SessionType, UnitCategory } from '../types/koku';
-import { getAccessToken } from './auth';
+import { getAccessToken, clearAccessToken } from './auth';
 
 export interface SheetImportResult {
   teachers: Teacher[];
@@ -22,52 +22,13 @@ export function extractSheetId(input: string): string {
   return trimmed;
 }
 
-// Ensure required tabs exist in spreadsheet
-async function ensureRequiredSheets(cleanId: string, token: string, requiredSheets: string[]) {
-  try {
-    const metaRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties.title`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    if (!metaRes.ok) return;
-    const meta = await metaRes.json();
-    const existingTitles = new Set(meta.sheets?.map((s: { properties?: { title?: string } }) => s.properties?.title) || []);
-
-    const requests = [];
-    for (const title of requiredSheets) {
-      if (!existingTitles.has(title)) {
-        requests.push({
-          addSheet: {
-            properties: { title },
-          },
-        });
-      }
-    }
-
-    if (requests.length > 0) {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ requests }),
-      });
-    }
-  } catch (err) {
-    console.warn('Auto-create sheets warning:', err);
-  }
-}
-
 /**
- * Creates a brand new Google Sheet in the user's Google Drive with all essential tabs.
+ * Creates a brand new Google Sheet in the user's Google Drive with all essential tabs and generous dimensions.
  */
 export async function createNewSpreadsheet(title: string): Promise<string> {
   const token = await getAccessToken();
   if (!token) {
-    throw new Error('Sila log masuk dengan Google terlebih dahulu untuk mencipta Google Sheet.');
+    throw new Error('AUTH_EXPIRED: Sila log masuk dengan Google terlebih dahulu untuk mencipta Google Sheet.');
   }
 
   const payload = {
@@ -78,31 +39,31 @@ export async function createNewSpreadsheet(title: string): Promise<string> {
       {
         properties: {
           title: 'Agihan_Kokurikulum',
-          gridProperties: { rowCount: 300, columnCount: 12 },
+          gridProperties: { rowCount: 1000, columnCount: 26 },
         },
       },
       {
         properties: {
           title: 'Senarai_Guru',
-          gridProperties: { rowCount: 200, columnCount: 10 },
+          gridProperties: { rowCount: 1000, columnCount: 26 },
         },
       },
       {
         properties: {
           title: 'Senarai_Unit',
-          gridProperties: { rowCount: 100, columnCount: 10 },
+          gridProperties: { rowCount: 1000, columnCount: 26 },
         },
       },
       {
         properties: {
           title: 'Ringkasan_Unit',
-          gridProperties: { rowCount: 100, columnCount: 10 },
+          gridProperties: { rowCount: 1000, columnCount: 26 },
         },
       },
       {
         properties: {
           title: 'Panduan_GPK',
-          gridProperties: { rowCount: 30, columnCount: 6 },
+          gridProperties: { rowCount: 200, columnCount: 10 },
         },
       },
     ],
@@ -116,6 +77,11 @@ export async function createNewSpreadsheet(title: string): Promise<string> {
     },
     body: JSON.stringify(payload),
   });
+
+  if (response.status === 401) {
+    clearAccessToken();
+    throw new Error('AUTH_EXPIRED: Sesi akaun Google anda telah tamat tempoh keselamatan. Sila klik butang "Sambung Semula & Simpan".');
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -141,12 +107,12 @@ export async function saveAllToGoogleSheet(
 ): Promise<{ success: boolean; rowsCount: number; timestamp: string }> {
   const token = await getAccessToken();
   if (!token) {
-    throw new Error('Sila log masuk Google untuk menyimpan data ke Google Sheet.');
+    throw new Error('AUTH_EXPIRED: Sesi akaun Google telah tamat tempoh keselamatan (sesi 1 jam). Sila klik butang "Sambung Semula & Simpan".');
   }
 
   const cleanId = extractSheetId(sheetId);
   if (!cleanId) {
-    throw new Error('ID Google Sheet tidak sah.');
+    throw new Error('ID atau pautan Google Sheet tidak sah.');
   }
 
   const timestamp = new Date().toLocaleString('ms-MY', {
@@ -155,11 +121,41 @@ export async function saveAllToGoogleSheet(
     timeStyle: 'short',
   });
 
-  // Ensure necessary tabs exist
-  const requiredTabs = ['Agihan_Kokurikulum', 'Senarai_Guru', 'Senarai_Unit', 'Ringkasan_Unit', 'Panduan_GPK'];
-  await ensureRequiredSheets(cleanId, token, requiredTabs);
+  // 1. First, fetch spreadsheet metadata to verify permissions and get existing tabs & sizes
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties(sheetId,title,gridProperties)`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
 
-  // 1. Prepare Agihan_Kokurikulum data
+  if (metaRes.status === 401) {
+    clearAccessToken();
+    throw new Error('AUTH_EXPIRED: Sesi akaun Google telah tamat tempoh keselamatan (sesi 1 jam). Sila klik butang "Sambung Semula & Simpan".');
+  }
+  if (metaRes.status === 403) {
+    throw new Error('PERMISSION_DENIED: Akaun Google anda tiada kebenaran Editor pada fail Google Sheet ini. Pastikan anda menggunakan akaun Google pemilik fail atau buka kebenaran kongsi ("Editor").');
+  }
+  if (metaRes.status === 404) {
+    throw new Error('NOT_FOUND: Fail Google Sheet tidak dijumpai. Sila pastikan pautan atau ID Google Sheet dimasukkan dengan betul.');
+  }
+  if (!metaRes.ok) {
+    const metaErr = await metaRes.json().catch(() => ({}));
+    throw new Error(metaErr?.error?.message || `Gagal menyambung ke Google Sheet (${metaRes.status})`);
+  }
+
+  const metaData = await metaRes.json();
+  const existingSheets: { sheetId: number; title: string; rowCount: number; columnCount: number }[] =
+    metaData.sheets?.map((s: { properties?: { sheetId?: number; title?: string; gridProperties?: { rowCount?: number; columnCount?: number } } }) => ({
+      sheetId: s.properties?.sheetId ?? 0,
+      title: s.properties?.title || '',
+      rowCount: s.properties?.gridProperties?.rowCount || 1000,
+      columnCount: s.properties?.gridProperties?.columnCount || 26,
+    })) || [];
+
+  const existingTitles = new Set(existingSheets.map(s => s.title));
+
+  // 2. Prepare Agihan_Kokurikulum data
   const unitMap = new Map(units.map(u => [u.id, u]));
   const teacherMap = new Map(teachers.map(t => [t.id, t]));
 
@@ -199,7 +195,7 @@ export async function saveAllToGoogleSheet(
     ]);
   });
 
-  // 2. Prepare Senarai_Guru sheet data
+  // 3. Prepare Senarai_Guru sheet data
   const teacherRows: (string | number)[][] = [
     [
       'ID Guru',
@@ -231,7 +227,7 @@ export async function saveAllToGoogleSheet(
     ]);
   });
 
-  // 3. Prepare Senarai_Unit data
+  // 4. Prepare Senarai_Unit data
   const unitRows: (string | number)[][] = [
     [
       'ID Unit',
@@ -262,7 +258,7 @@ export async function saveAllToGoogleSheet(
     ]);
   });
 
-  // 4. Prepare Ringkasan_Unit data
+  // 5. Prepare Ringkasan_Unit data
   const summaryRows: (string | number)[][] = [
     [
       'Kod Unit',
@@ -297,7 +293,7 @@ export async function saveAllToGoogleSheet(
     ]);
   });
 
-  // 5. Prepare Panduan_GPK sheet data
+  // 6. Prepare Panduan_GPK sheet data
   const guideRows: (string | number)[][] = [
     ['PANDUAN PENGURUSAN DATA GOOGLE SHEET GPK KOKURIKULUM', ''],
     ['Sekolah:', schoolSettings.schoolName],
@@ -317,69 +313,138 @@ export async function saveAllToGoogleSheet(
     ['Tab "Ringkasan_Unit":', 'Laporan kepimpinan (Ketua Guru Penasihat & Setiausaha) dan statistik bilangan sesi.'],
   ];
 
-  // Helper to clear and write a tab
-  const writeSheetTab = async (sheetTitle: string, values: (string | number)[][]) => {
-    // Clear old data to prevent stale leftover rows
-    try {
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(sheetTitle)}!A1:Z500:clear`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+  // 7. Auto-create missing tabs & expand sheet dimensions if needed
+  const tabRequirements: { title: string; minRows: number; minCols: number }[] = [
+    { title: 'Agihan_Kokurikulum', minRows: assignmentRows.length + 50, minCols: 20 },
+    { title: 'Senarai_Guru', minRows: teacherRows.length + 50, minCols: 20 },
+    { title: 'Senarai_Unit', minRows: unitRows.length + 50, minCols: 16 },
+    { title: 'Ringkasan_Unit', minRows: summaryRows.length + 50, minCols: 16 },
+    { title: 'Panduan_GPK', minRows: guideRows.length + 20, minCols: 10 },
+  ];
+
+  const structuralRequests: object[] = [];
+
+  for (const req of tabRequirements) {
+    const existing = existingSheets.find(s => s.title === req.title);
+    if (!existing) {
+      structuralRequests.push({
+        addSheet: {
+          properties: {
+            title: req.title,
+            gridProperties: {
+              rowCount: Math.max(1000, req.minRows),
+              columnCount: Math.max(26, req.minCols),
+            },
           },
-        }
-      );
-    } catch {
-      // ignore clear error
-    }
-
-    // Write new values
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(sheetTitle)}!A1?valueInputOption=USER_ENTERED`;
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ values }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `Gagal mengemaskini data pada tab ${sheetTitle}`);
-    }
-  };
-
-  try {
-    await writeSheetTab('Agihan_Kokurikulum', assignmentRows);
-    await writeSheetTab('Senarai_Guru', teacherRows);
-    await writeSheetTab('Senarai_Unit', unitRows);
-    await writeSheetTab('Ringkasan_Unit', summaryRows);
-    await writeSheetTab('Panduan_GPK', guideRows);
-  } catch (err: unknown) {
-    // If specific tabs fail, fallback to Sheet1
-    console.warn('Gagal menulis tab khusus, mencuba simpan ke helaian Sheet1:', err);
-    const fallbackUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Sheet1!A1?valueInputOption=USER_ENTERED`;
-    const fallbackRes = await fetch(fallbackUrl, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ values: assignmentRows }),
-    });
-    if (!fallbackRes.ok) {
-      const fallbackErr = await fallbackRes.json().catch(() => ({}));
-      throw new Error(fallbackErr?.error?.message || 'Gagal menyimpan ke Google Sheet.');
+        },
+      });
+    } else if (existing.rowCount < req.minRows || existing.columnCount < req.minCols) {
+      structuralRequests.push({
+        updateSheetProperties: {
+          properties: {
+            sheetId: existing.sheetId,
+            gridProperties: {
+              rowCount: Math.max(existing.rowCount, req.minRows, 1000),
+              columnCount: Math.max(existing.columnCount, req.minCols, 26),
+            },
+          },
+          fields: 'gridProperties(rowCount,columnCount)',
+        },
+      });
     }
   }
 
-  return { 
-    success: true, 
+  if (structuralRequests.length > 0) {
+    try {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ requests: structuralRequests }),
+      });
+    } catch (batchErr) {
+      console.warn('Batch update sheet dimensions warning:', batchErr);
+    }
+  }
+
+  // 8. Safely clear old values across sheets to prevent leftover rows
+  try {
+    const clearRanges = tabRequirements
+      .filter(r => existingTitles.has(r.title) || structuralRequests.length > 0)
+      .map(r => `'${r.title}'!A1:Z`);
+
+    if (clearRanges.length > 0) {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values:batchClear`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ranges: clearRanges }),
+      });
+    }
+  } catch (clearErr) {
+    console.warn('Values batchClear warning (continuing with write):', clearErr);
+  }
+
+  // 9. Atomic batch write of all tabs in ONE single API call!
+  const batchWritePayload = {
+    valueInputOption: 'USER_ENTERED',
+    data: [
+      { range: "'Agihan_Kokurikulum'!A1", values: assignmentRows },
+      { range: "'Senarai_Guru'!A1", values: teacherRows },
+      { range: "'Senarai_Unit'!A1", values: unitRows },
+      { range: "'Ringkasan_Unit'!A1", values: summaryRows },
+      { range: "'Panduan_GPK'!A1", values: guideRows },
+    ],
+  };
+
+  const writeRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(batchWritePayload),
+    }
+  );
+
+  if (writeRes.status === 401) {
+    clearAccessToken();
+    throw new Error('AUTH_EXPIRED: Sesi akaun Google anda telah tamat tempoh keselamatan. Sila klik butang "Sambung Semula & Simpan".');
+  }
+
+  if (!writeRes.ok) {
+    // If batch write to multiple tabs failed (e.g. permission or specific range issue),
+    // try writing directly to the main tab available
+    console.warn('Batch write tabs failed, attempting fallback to primary sheet tab...');
+    const primaryTab = existingSheets[0]?.title || 'Sheet1';
+    const fallbackRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/'${encodeURIComponent(primaryTab)}'!A1?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ values: assignmentRows }),
+      }
+    );
+
+    if (!fallbackRes.ok) {
+      const errDetail = await fallbackRes.json().catch(() => ({}));
+      throw new Error(errDetail?.error?.message || 'Gagal menyimpan rekod ke dalam Google Sheet. Sila pastikan pautan Google Sheet betul.');
+    }
+  }
+
+  return {
+    success: true,
     rowsCount: assignments.length + teachers.length + units.length,
-    timestamp
+    timestamp,
   };
 }
 

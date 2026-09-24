@@ -19,9 +19,11 @@ import {
   Check
 } from 'lucide-react';
 import { User } from 'firebase/auth';
-import { googleSignIn, logout, isUserCancelledAuthError } from '../services/auth';
+import { googleSignIn, logout, isUserCancelledAuthError, parseAuthError, getAccessToken } from '../services/auth';
 import { createNewSpreadsheet, saveAllToGoogleSheet, fetchFromGoogleSheet, extractSheetId } from '../services/googleSheets';
 import { Teacher, KokuUnit, UnitAssignment, SchoolSettings } from '../types/koku';
+import { exportMatrixToExcel } from '../utils/kokuHelpers';
+import { Copy, Info, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface GoogleSheetSyncModalProps {
   isOpen: boolean;
@@ -64,8 +66,21 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [showConfirmSave, setShowConfirmSave] = useState(false);
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
+  const [needsReauth, setNeedsReauth] = useState(false);
 
   if (!isOpen) return null;
+
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+
+  const handleCopyHostname = () => {
+    if (navigator.clipboard && currentHostname) {
+      navigator.clipboard.writeText(currentHostname);
+      setCopiedDomain(true);
+      setTimeout(() => setCopiedDomain(false), 2500);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -74,6 +89,7 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       const res = await googleSignIn();
       if (res?.user) {
         onUserChange(res.user);
+        setNeedsReauth(false);
         setStatusMessage({ 
           type: 'success', 
           text: `Log masuk berjaya sebagai ${res.user.displayName || res.user.email}. Akaun Google anda sedia untuk disegerak.` 
@@ -81,7 +97,7 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       } else {
         setStatusMessage({ 
           type: 'info', 
-          text: 'Log masuk dibatalkan atau kebenaran Google Sheets tidak diberikan. Sila klik semula butang log masuk dan pilih "Benarkan / Allow" pada paparan Google untuk menyambung Google Sheet.' 
+          text: 'Log masuk dibatalkan atau tetingkap ditutup sebelum selesai. Anda boleh cuba semula bila-bila masa.' 
         });
       }
     } catch (err: unknown) {
@@ -91,11 +107,13 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
           text: 'Log masuk dibatalkan atau kebenaran capaian tidak diberikan. Anda boleh cuba semula bila-bila masa.' 
         });
       } else {
-        const msg = err instanceof Error ? err.message : 'Sila pastikan tetingkap timbul (pop-up) tidak disekat oleh pelayar anda.';
+        const errorText = parseAuthError(err);
         setStatusMessage({ 
           type: 'error', 
-          text: `Gagal log masuk Google: ${msg}` 
+          text: `Gagal log masuk Google: ${errorText}` 
         });
+        // Automatically reveal troubleshooting if domain or popup error
+        setShowTroubleshoot(true);
       }
     } finally {
       setIsLoading(false);
@@ -105,13 +123,77 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   const handleGoogleLogout = async () => {
     await logout();
     onUserChange(null);
+    setNeedsReauth(false);
     setStatusMessage({ type: 'info', text: 'Anda telah log keluar daripada akaun Google.' });
+  };
+
+  // Immediate recovery: Re-authenticate and save in one seamless step
+  const handleReauthAndSave = async () => {
+    setIsLoading(true);
+    setStatusMessage({ type: 'info', text: 'Sedang membuka log masuk Google untuk memperbaharui kebenaran...' });
+    try {
+      const res = await googleSignIn();
+      if (res?.user && res.accessToken) {
+        onUserChange(res.user);
+        setNeedsReauth(false);
+        const cleanId = extractSheetId(inputSheetId);
+        if (cleanId) {
+          setStatusMessage({ type: 'info', text: 'Pengesahan berjaya. Sedang menyimpan data ke Google Sheet...' });
+          const result = await saveAllToGoogleSheet(cleanId, teachers, assignments, units, schoolSettings);
+          onSetSheetId(cleanId);
+          setStatusMessage({
+            type: 'success',
+            text: `Berjaya! Data telah disimpan ke fail Google Sheet pada ${result.timestamp}! (${teachers.length} guru, ${assignments.length} rekod agihan)`
+          });
+        } else {
+          setStatusMessage({
+            type: 'success',
+            text: `Log masuk diperbaharui sebagai ${res.user.displayName || res.user.email}. Sila klik Cipta Spreadsheet Baharu atau masukkan ID Sheet.`
+          });
+        }
+      } else {
+        setStatusMessage({ type: 'info', text: 'Pengesahan dibatalkan. Sila cuba lagi bila anda bersedia.' });
+      }
+    } catch (err: unknown) {
+      if (!isUserCancelledAuthError(err)) {
+        setStatusMessage({ type: 'error', text: parseAuthError(err) });
+        setShowTroubleshoot(true);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCreateNewSheet = async () => {
     if (!googleUser) {
-      setStatusMessage({ type: 'error', text: 'Sila log masuk akaun Google terlebih dahulu.' });
+      setStatusMessage({ 
+        type: 'error', 
+        text: 'Sila klik butang "Log Masuk Akaun Google" di atas terlebih dahulu untuk membolehkan penciptaan Google Sheet di Google Drive anda.' 
+      });
       return;
+    }
+
+    let token = await getAccessToken();
+    if (!token) {
+      // Prompt quick sign-in
+      try {
+        const res = await googleSignIn();
+        if (res?.user && res.accessToken) {
+          onUserChange(res.user);
+          token = res.accessToken;
+        } else {
+          setNeedsReauth(true);
+          setStatusMessage({ 
+            type: 'error', 
+            text: 'Sesi keselamatan Google telah tamat tempoh. Sila klik butang "Sambung Semula & Simpan".' 
+          });
+          return;
+        }
+      } catch (authErr) {
+        setNeedsReauth(true);
+        setStatusMessage({ type: 'error', text: parseAuthError(authErr) });
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -130,16 +212,56 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ralat semasa mencipta Google Sheet';
-      setStatusMessage({ type: 'error', text: msg });
+      if (msg.includes('AUTH_EXPIRED') || msg.includes('401')) {
+        setNeedsReauth(true);
+        setStatusMessage({
+          type: 'error',
+          text: 'Sesi keselamatan Google telah tamat tempoh (sesi 1 jam). Sila klik butang "Sambung Semula & Simpan" di bawah.'
+        });
+      } else {
+        setStatusMessage({ type: 'error', text: parseAuthError(err) });
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Called when user clicks "Simpan Sekarang ke Google Sheet" in modal footer
+  const handleInitiateSave = () => {
+    if (!googleUser) {
+      setStatusMessage({ 
+        type: 'error', 
+        text: 'Sila klik butang "Log Masuk Akaun Google" di atas terlebih dahulu untuk menyambungkan Google Drive anda.' 
+      });
+      return;
+    }
+
+    const cleanId = extractSheetId(inputSheetId);
+    if (!cleanId) {
+      setStatusMessage({ 
+        type: 'error', 
+        text: 'Sila masukkan Pautan / ID fail Google Sheet sekolah anda, atau klik "+ Cipta Spreadsheet Baharu Automatik" di atas.' 
+      });
+      return;
+    }
+
+    setShowConfirmSave(true);
   };
 
   const handleSaveToSheetConfirm = async () => {
     setShowConfirmSave(false);
     if (!googleUser) {
       setStatusMessage({ type: 'error', text: 'Sila log masuk akaun Google untuk menyimpan.' });
+      return;
+    }
+
+    let token = await getAccessToken();
+    if (!token) {
+      setNeedsReauth(true);
+      setStatusMessage({ 
+        type: 'error', 
+        text: 'Sesi capaian Google telah tamat tempoh keselamatan (sesi 1 jam). Sila klik butang "Sambung Semula & Simpan" di bawah.' 
+      });
       return;
     }
 
@@ -154,13 +276,22 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
     try {
       const result = await saveAllToGoogleSheet(cleanId, teachers, assignments, units, schoolSettings);
       onSetSheetId(cleanId);
+      setNeedsReauth(false);
       setStatusMessage({
         type: 'success',
         text: `Data berjaya disimpan ke Google Sheet pada ${result.timestamp}! (${teachers.length} guru, ${assignments.length} agihan unit)`
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ralat semasa menyimpan ke Google Sheet';
-      setStatusMessage({ type: 'error', text: msg });
+      if (msg.includes('AUTH_EXPIRED') || msg.includes('401')) {
+        setNeedsReauth(true);
+        setStatusMessage({
+          type: 'error',
+          text: 'Sesi token capaian Google anda telah tamat tempoh (sesi 1 jam). Sila klik butang "Sambung Semula & Simpan" di bawah.'
+        });
+      } else {
+        setStatusMessage({ type: 'error', text: parseAuthError(err) });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -169,6 +300,16 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   const handlePullFromSheet = async () => {
     if (!googleUser) {
       setStatusMessage({ type: 'error', text: 'Sila log masuk akaun Google untuk memuat turun data.' });
+      return;
+    }
+
+    const token = await getAccessToken();
+    if (!token) {
+      setNeedsReauth(true);
+      setStatusMessage({ 
+        type: 'error', 
+        text: 'Sesi capaian Google telah tamat tempoh keselamatan (sesi 1 jam). Sila klik butang "Sambung Semula & Simpan" di bawah.' 
+      });
       return;
     }
 
@@ -190,6 +331,7 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       if (teacherCount > 0 || assignCount > 0) {
         onImportSheetData(data.teachers, data.assignments, data.customUnits);
         onSetSheetId(cleanId);
+        setNeedsReauth(false);
         setStatusMessage({
           type: 'success',
           text: `Berjaya memuat turun ${teacherCount} guru, ${assignCount} agihan penugasan${unitCount > 0 ? `, dan ${unitCount} unit` : ''} terus daripada Google Sheet!`
@@ -202,9 +344,30 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Ralat membaca Google Sheet';
-      setStatusMessage({ type: 'error', text: msg });
+      if (msg.includes('AUTH_EXPIRED') || msg.includes('401')) {
+        setNeedsReauth(true);
+        setStatusMessage({
+          type: 'error',
+          text: 'Sesi Google telah tamat tempoh keselamatan. Sila klik butang "Sambung Semula & Simpan" di bawah.'
+        });
+      } else {
+        setStatusMessage({ type: 'error', text: parseAuthError(err) });
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleExportExcelDirect = () => {
+    try {
+      exportMatrixToExcel(teachers, units, assignments, schoolSettings.schoolName, schoolSettings.academicYear);
+      setStatusMessage({
+        type: 'success',
+        text: 'Fail sandaran Excel (.xlsx) dengan jadual induk dan senarai unit berjaya dimuat turun ke komputer anda!'
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Ralat semasa memuat turun fail Excel';
+      setStatusMessage({ type: 'error', text: msg });
     }
   };
 
@@ -278,21 +441,40 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
 
           {/* Status Message Banner */}
           {statusMessage && (
-            <div className={`mt-4 p-3.5 rounded-2xl text-xs flex items-start gap-2.5 ${
+            <div className={`mt-4 p-3.5 rounded-2xl text-xs flex flex-col gap-2 ${
               statusMessage.type === 'success'
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                 : statusMessage.type === 'error'
                 ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                 : 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
             }`}>
-              {statusMessage.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
-              ) : statusMessage.type === 'error' ? (
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
-              ) : (
-                <RefreshCw className="w-4 h-4 shrink-0 text-blue-600 mt-0.5 animate-spin" />
+              <div className="flex items-start gap-2.5">
+                {statusMessage.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
+                ) : statusMessage.type === 'error' ? (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 shrink-0 text-blue-600 mt-0.5 animate-spin" />
+                )}
+                <span className="font-medium leading-relaxed">{statusMessage.text}</span>
+              </div>
+
+              {needsReauth && (
+                <div className="mt-1 pt-2 border-t border-rose-200/80 dark:border-rose-900/60 flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+                    Sesi token Google telah tamat tempoh keselamatan:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleReauthAndSave}
+                    disabled={isLoading}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                    <span>🔑 Sambung Semula &amp; Simpan Sekarang</span>
+                  </button>
+                </div>
               )}
-              <span className="font-medium">{statusMessage.text}</span>
             </div>
           )}
 
@@ -362,6 +544,84 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-emerald-50/50 dark:bg-emerald-950/20 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-900/40">
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">💡 Tip Akses:</span> Apabila tetingkap Google dibuka, pastikan anda klik <b>&quot;Benarkan / Allow&quot;</b> untuk membenarkan sistem mencipta & menyimpan fail ke Google Sheet anda. Jika dibatalkan, data anda masih selamat disimpan secara automatik dalam pelayar ini.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bantuan & Panduan Penyelesaian Masalah Sambungan Google Sheet / Vercel */}
+          <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50 dark:bg-slate-800/40">
+            <button
+              type="button"
+              onClick={() => setShowTroubleshoot(!showTroubleshoot)}
+              className="w-full p-3.5 flex items-center justify-between text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Panduan Jika Tidak Dapat Sambung ke Google Sheet (Vercel / Firebase)</span>
+              </div>
+              {showTroubleshoot ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showTroubleshoot && (
+              <div className="p-4 pt-1 text-xs space-y-3 border-t border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                {/* Punca 1: Authorized Domains Vercel */}
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200">
+                  <div className="font-bold flex items-center gap-1.5 mb-1">
+                    <span>1. Domain Vercel Belum Didaftarkan (auth/unauthorized-domain)</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed">
+                    Jika anda membuka sistem ini melalui pautan Vercel (contoh: <code>https://nama-projek.vercel.app</code>), Google Authentication memerlukan domain Vercel ini dimasukkan ke dalam senarai <b>Authorized Domains</b> di Firebase.
+                  </p>
+                  {currentHostname && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap bg-white dark:bg-slate-900 p-2 rounded-lg border border-amber-300 dark:border-amber-700">
+                      <span className="text-[11px] font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {currentHostname}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyHostname}
+                        className="px-2.5 py-1 text-[10px] font-bold rounded bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1 cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedDomain ? 'Disalin!' : 'Salin Domain'}</span>
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
+                    Langkah mudah: Buka <b>Firebase Console &gt; Authentication &gt; Settings &gt; Authorized Domains</b> &gt; Klik <b>Add Domain</b> &gt; Tampal domain di atas &gt; Simpan.
+                  </p>
+                </div>
+
+                {/* Punca 2: Pop-up Disekat */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-700/50">
+                  <div className="font-bold text-slate-900 dark:text-white mb-0.5">
+                    2. Pop-up Log Masuk Disekat Pelayar
+                  </div>
+                  <p className="text-[11px] leading-relaxed">
+                    Pelayar Google Chrome atau Safari kadangkala menyekat tetingkap timbul (pop-up). Sila klik ikon &quot;Pop-up blocked&quot; di penjuru bar carian pelayar anda dan pilih <b>&quot;Always allow pop-ups&quot;</b>.
+                  </p>
+                </div>
+
+                {/* Punca 3: Akaun KPM DELIMa vs Akaun Biasa */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-700/50">
+                  <div className="font-bold text-slate-900 dark:text-white mb-0.5">
+                    3. Akaun Rasmi KPM DELIMa (@moe-dl.edu.my)
+                  </div>
+                  <p className="text-[11px] leading-relaxed">
+                    Sesetengah akaun DELIMa sekolah menyekat kebenaran aplikasi pihak ketiga ke Google Drive. Jika akaun DELIMa gagal, anda disyorkan menggunakan akaun Google peribadi biasa (<code>@gmail.com</code>) untuk pangkalan data Google Sheet sekolah anda.
+                  </p>
+                </div>
+
+                {/* Jaminan Data Luar Talian */}
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200">
+                  <div className="font-bold flex items-center gap-1.5 mb-1">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Data Anda Sentiasa Selamat &amp; Boleh Dieksport Bila-bila Masa</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed">
+                    Sistem ini tidak bergantung 100% kepada Google Sheet. Semua data sekolah anda disimpan secara selamat dalam pelayar ini dan anda boleh memuat turun fail sandaran <b>Excel (.xlsx)</b> bila-bila masa melalui butang <b>Eksport Jadual Induk</b> di menu utama!
+                  </p>
                 </div>
               </div>
             )}
@@ -448,22 +708,36 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons: Save to Sheet & Pull from Sheet */}
+          {/* Action Buttons: Save to Sheet & Pull from Sheet & Offline Excel */}
           <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <button
-              onClick={handlePullFromSheet}
-              disabled={isLoading || !googleUser || !inputSheetId}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
-              title="Jika anda telah mengedit senarai guru atau agihan di Google Sheet, klik ini untuk menyelaraskannya ke sistem"
-            >
-              <Download className="w-4 h-4 text-slate-500" />
-              <span>Segerak Dari Google Sheet (Tarik Perubahan)</span>
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+              <button
+                type="button"
+                onClick={handleExportExcelDirect}
+                className="px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                title="Muat turun fail sandaran penuh dalam format Microsoft Excel (.xlsx) untuk simpanan luar talian"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Eksport Excel (.xlsx)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePullFromSheet}
+                disabled={isLoading}
+                className="px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors cursor-pointer"
+                title="Jika anda telah mengedit senarai guru atau agihan di Google Sheet, klik ini untuk menyelaraskannya ke sistem"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>Segerak Dari Sheet</span>
+              </button>
+            </div>
 
             <button
-              onClick={() => setShowConfirmSave(true)}
-              disabled={isLoading || !googleUser || !inputSheetId}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition-colors cursor-pointer"
+              type="button"
+              onClick={handleInitiateSave}
+              disabled={isLoading}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
             >
               <Upload className="w-4 h-4" />
               <span>Simpan Sekarang ke Google Sheet</span>
@@ -492,22 +766,34 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
               <div>• <b>{teachers.length}</b> rekod guru dalam tab <i>Senarai_Guru</i></div>
               <div>• <b>{assignments.length}</b> rekod agihan dalam tab <i>Agihan_Kokurikulum</i></div>
               <div>• <b>{units.length}</b> unit kokurikulum dalam tab <i>Senarai_Unit</i></div>
-              <div>• Ringkasan kepimpinan (Ketua & SU) dalam tab <i>Ringkasan_Unit</i></div>
+              <div>• Ringkasan kepimpinan (Ketua &amp; SU) dalam tab <i>Ringkasan_Unit</i></div>
             </div>
 
             <div className="mt-5 flex justify-end gap-2.5">
               <button
+                type="button"
                 onClick={() => setShowConfirmSave(false)}
                 className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={handleSaveToSheetConfirm}
-                className="px-5 py-2 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+                disabled={isLoading}
+                className="px-5 py-2 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
               >
-                <Check className="w-4 h-4" />
-                <span>Sahkan Simpan Sekarang</span>
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Sahkan Simpan Sekarang</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

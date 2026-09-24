@@ -209,7 +209,12 @@ export default function App() {
     } catch (err: unknown) {
       setSyncStatus('error');
       const msg = err instanceof Error ? err.message : 'Ralat semasa menyimpan ke Google Sheet';
-      showToast(msg, 'warning');
+      if (msg.includes('AUTH_EXPIRED') || msg.includes('401')) {
+        showToast('Sesi Google telah tamat tempoh. Tetingkap penyegerakan dibuka untuk memperbaharui sambungan.', 'warning');
+        setIsGoogleSheetModalOpen(true);
+      } else {
+        showToast(msg, 'warning');
+      }
     } finally {
       setIsSyncing(false);
     }
