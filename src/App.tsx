@@ -372,7 +372,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/40 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans relative selection:bg-emerald-500 selection:text-white">
+      {/* Cheerful & Professional Ambient Background Accents */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute -top-32 -left-32 w-[30rem] h-[30rem] bg-emerald-300/20 dark:bg-emerald-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -right-32 w-[32rem] h-[32rem] bg-teal-300/20 dark:bg-teal-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 left-1/3 w-[34rem] h-[34rem] bg-amber-200/20 dark:bg-amber-500/5 rounded-full blur-3xl" />
+      </div>
+
       {/* Navbar with stats, tabs, quick buttons */}
       <Navbar
         settings={settings}

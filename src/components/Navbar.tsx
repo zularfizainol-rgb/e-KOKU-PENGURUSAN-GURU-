@@ -143,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-xs">
+      <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-emerald-100/70 dark:border-slate-800 sticky top-0 z-30 shadow-xs transition-colors">
         {/* Top Info Bar */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
           {/* Logo & School Title */}
@@ -327,17 +327,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Navigation Tabs Bar */}
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center overflow-x-auto no-scrollbar gap-1 border-t border-slate-100 dark:border-slate-800/80">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center overflow-x-auto no-scrollbar gap-1 border-t border-emerald-100/60 dark:border-slate-800/80">
           {navTabs.map(tab => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold whitespace-nowrap border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap border-b-2 transition-all cursor-pointer ${
                   isActive
-                    ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20'
-                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:border-slate-300'
+                    ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400 bg-emerald-50/70 dark:bg-emerald-950/40 shadow-xs'
+                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-slate-800/40'
                 }`}
               >
                 <span>{tab.icon}</span>
