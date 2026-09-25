@@ -58,6 +58,10 @@ export interface SchoolSettings {
   district: string;
   schoolLogo?: string;
   ts25Logo?: string;
+  schoolLogoUrl?: string;
+  ts25LogoUrl?: string;
+  showTs25Logo?: boolean;
+  ts25Cohort?: string;
 }
 
 export interface GoogleSheetConfig {

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Teacher, KokuUnit, UnitAssignment, SchoolSettings, RoleType, SessionType, UnitCategory } from '../types/koku';
 import { sortTeachersBySessionAndAlphabet } from '../utils/kokuHelpers';
+import { OFFICIAL_TS25_LOGO_SVG } from '../utils/logoHelpers';
 
 const CATEGORY_CONFIG: {
   category: UnitCategory;
@@ -191,9 +192,9 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
               {/* Right Column: TS25 Logo */}
               <div className="w-20 shrink-0 flex items-center justify-end">
-                {settings.ts25Logo ? (
+                {settings.ts25Logo !== 'NONE' && (settings.ts25Logo || OFFICIAL_TS25_LOGO_SVG) ? (
                   <img
-                    src={settings.ts25Logo}
+                    src={settings.ts25Logo || OFFICIAL_TS25_LOGO_SVG}
                     alt="Logo TS25"
                     className="max-h-20 max-w-[80px] object-contain"
                   />

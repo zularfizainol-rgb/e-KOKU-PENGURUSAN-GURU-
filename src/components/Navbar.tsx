@@ -120,8 +120,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleRemoveTs25Logo = () => {
-    setTempSettings(prev => ({ ...prev, ts25Logo: undefined }));
+    setTempSettings(prev => ({ ...prev, ts25Logo: 'NONE' }));
   };
+
+  const effectiveTs25Logo = settings.ts25Logo !== 'NONE' 
+    ? (settings.ts25Logo || OFFICIAL_TS25_LOGO_SVG) 
+    : null;
 
   const morningTeachers = teachers.filter(t => t.session === 'Pagi').length;
   const afternoonTeachers = teachers.filter(t => t.session === 'Petang').length;
@@ -143,50 +147,58 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Top Info Bar */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
           {/* Logo & School Title */}
-          <div className="flex items-center gap-3">
-            {settings.schoolLogo ? (
-              <img
-                src={settings.schoolLogo}
-                alt="Logo Sekolah"
-                onClick={handleOpenSettingsModal}
-                className="w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-xl bg-white dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700 shadow-md shadow-emerald-500/10 cursor-pointer shrink-0 hover:scale-105 transition-transform"
-                title="Klik untuk ubah maklumat & muat naik logo sekolah"
-              />
-            ) : (
-              <div 
-                onClick={handleOpenSettingsModal}
-                className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0 cursor-pointer hover:scale-105 transition-transform"
-                title="Klik untuk ubah maklumat sekolah & muat naik logo"
-              >
-                <School className="w-6 h-6" />
-              </div>
-            )}
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
+            {/* Logos side by side */}
+            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+              {/* Logo Sekolah */}
+              {settings.schoolLogo ? (
+                <img
+                  src={settings.schoolLogo}
+                  alt="Logo Sekolah"
+                  onClick={handleOpenSettingsModal}
+                  className="w-11 h-11 sm:w-13 sm:h-13 object-contain rounded-2xl bg-white dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700 shadow-md shadow-emerald-500/10 cursor-pointer shrink-0 hover:scale-105 transition-transform"
+                  title="Logo Sekolah (Klik untuk ubah maklumat & muat naik logo)"
+                />
+              ) : (
+                <div 
+                  onClick={handleOpenSettingsModal}
+                  className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0 cursor-pointer hover:scale-105 transition-transform"
+                  title="Klik untuk ubah maklumat sekolah & muat naik logo"
+                >
+                  <School className="w-6 h-6 sm:w-7 sm:h-7" />
+                </div>
+              )}
+
+              {/* Logo TS25 Di Sebelah Logo Sekolah */}
+              {effectiveTs25Logo && (
+                <img
+                  src={effectiveTs25Logo}
+                  alt="Logo TS25"
+                  onClick={handleOpenSettingsModal}
+                  className="w-11 h-11 sm:w-13 sm:h-13 object-contain rounded-2xl bg-white dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700 shadow-md shadow-amber-500/10 cursor-pointer shrink-0 hover:scale-105 transition-transform"
+                  title="Program Transformasi Sekolah 2025 (TS25) - Klik untuk ubah logo"
+                />
+              )}
+            </div>
+
+            {/* Nama Sistem & Nama Sekolah */}
             <div>
               <div className="flex items-center gap-2">
-                <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs px-2 py-0.5 rounded-full font-bold tracking-wide">
-                  e-KOKU GPK
+                <span className="bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-300 text-xs sm:text-sm px-2.5 py-0.5 rounded-lg font-black tracking-wide border border-emerald-300/80 dark:border-emerald-800/80 shadow-xs flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>e-KOKU GPK</span>
                 </span>
-                {settings.ts25Logo && (
-                  <span 
-                    onClick={handleOpenSettingsModal}
-                    className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-bold border border-amber-200 dark:border-amber-800/60 cursor-pointer hover:bg-amber-100 transition-colors"
-                    title="Sekolah TS25 (Klik untuk urus)"
-                  >
-                    <img src={settings.ts25Logo} alt="TS25" className="w-3.5 h-3.5 object-contain rounded-xs" />
-                    <span>TS25</span>
-                  </span>
-                )}
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                <span className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
                   {settings.academicYear}
                 </span>
               </div>
               <h1 
                 onClick={handleOpenSettingsModal}
-                className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100 hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer flex items-center gap-1.5 transition-colors"
+                className="text-base sm:text-lg md:text-xl lg:text-2xl font-black text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer flex items-center gap-2 transition-colors mt-0.5 tracking-tight"
                 title="Klik untuk ubah maklumat sekolah"
               >
                 <span>{settings.schoolName}</span>
-                <span className="text-xs text-slate-400 font-normal hidden md:inline">✎ Kemaskini</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-normal hidden lg:inline hover:underline">✎ Kemaskini</span>
               </h1>
             </div>
           </div>

@@ -103,14 +103,12 @@ export const TS25Logo: React.FC<{ className?: string; size?: number; alt?: strin
   size, 
   alt = 'Logo TS25' 
 }) => {
-  return (
-    <img 
-      src={OFFICIAL_TS25_DATA_URI} 
-      alt={alt} 
-      className={`object-contain shrink-0 ${className}`} 
-      style={size ? { width: size, height: size } : undefined} 
-    />
-  );
+  return React.createElement('img', {
+    src: OFFICIAL_TS25_DATA_URI,
+    alt,
+    className: `object-contain shrink-0 ${className}`,
+    style: size ? { width: size, height: size } : undefined,
+  });
 };
 
 /**
