@@ -1,0 +1,1576 @@
+{
+  "teachers": [
+    {
+      "id": "imported-1790558810355-0-4fei",
+      "name": "PN. NORSHAZZIRA BINTI SHAMSUZ ZAMAN",
+      "staffId": "G1000",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-1-19x5",
+      "name": "PN. HARRIANI BINTI MARZUKI",
+      "staffId": "G1001",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-2-pivo",
+      "name": "CIK NURUL MARDHIAH BINTI RUSLAN",
+      "staffId": "G1002",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-3-av7v",
+      "name": "EN. MOHAMMAD AMIRUL HAQQIM BIN MOHAMMAD YUSAINI",
+      "staffId": "G1003",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-4-7rz7",
+      "name": "EN. MUHAMAD HAFIY FARHAN BIN HASSIM",
+      "staffId": "G1004",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-5-d1nn",
+      "name": "EN. ASRAL JAY AZAD BIN ABDUL RAHMAN",
+      "staffId": "G1005",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-6-vwzb",
+      "name": "CIK DHANYAA SIVAGASAN",
+      "staffId": "G1006",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-7-yoku",
+      "name": "PN. NUR RUZALINA BINTI ISMAIL",
+      "staffId": "G1007",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-8-kk5w",
+      "name": "EN. ZUL'ARFI BIN ZAINOL ABIDIN",
+      "staffId": "G1008",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-9-ksuu",
+      "name": "CIK TENGKU ANIS HANINI BINTI TENGKU AHMAD NORDIN",
+      "staffId": "G1009",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-10-fft5",
+      "name": "EN. NIK MUSADIQ BIN NIK MAT YUSOFF",
+      "staffId": "G1010",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-11-sfgs",
+      "name": "EN. MOHAMAD ARIFUDDIN BIN AB HADI",
+      "staffId": "G1011",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-12-z68x",
+      "name": "CIK NORYANI BINTI NAWAWI",
+      "staffId": "G1012",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-13-i0jd",
+      "name": "PN. ZARIFAH BINTI KASMUNEE",
+      "staffId": "G1013",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-14-cpy3",
+      "name": "PN. WAN FADHILLAH HANIM BINTI WAN YUSOFF",
+      "staffId": "G1014",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-15-ikus",
+      "name": "CIK NOR ADIBAH BINTI ABDULLAH",
+      "staffId": "G1015",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810355-16-hqov",
+      "name": "CIK FARAH ADILAH BINTI JAMIL",
+      "staffId": "G1016",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-17-xqhe",
+      "name": "CIK NOR AIN BINTI MOHD RAZLAN",
+      "staffId": "G1017",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-18-bxg6",
+      "name": "PN. ZUHAIRAH BINTI ZULKIPLI",
+      "staffId": "G1018",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-19-9i66",
+      "name": "CIK RABI'ATUL 'ADAWIYAH ZAINI",
+      "staffId": "G1019",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-20-fvv3",
+      "name": "PN. JALILATI BINTI HASAN",
+      "staffId": "G1020",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-21-i8yp",
+      "name": "PN. TUAN NUR SALWATI BINTI TUAN SULONG",
+      "staffId": "G1021",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-22-2xsb",
+      "name": "PN. NOR SYAZWANA BINTI JUSOH",
+      "staffId": "G1022",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-23-a85x",
+      "name": "PN. ZURAIDAH BINTI CHE MAT",
+      "staffId": "G1023",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-24-5247",
+      "name": "PN. SYAFAWATI BINTI HASHIM",
+      "staffId": "G1024",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-25-gdpe",
+      "name": "PN. NUR ASIAH BINTI HASBULLAH",
+      "staffId": "G1025",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-26-v4b5",
+      "name": "EN. ABDUL SHUKUR BIN MOKHTAR",
+      "staffId": "G1026",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-27-90es",
+      "name": "PN. SITI MAISARAH BINTI UJI",
+      "staffId": "G1027",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-28-yhmf",
+      "name": "PN. ZAMILAH BINTI MOHD ZUBIR",
+      "staffId": "G1028",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-29-dpmt",
+      "name": "PN. ILI AMIRAH BINTI AZHAM FUAD",
+      "staffId": "G1029",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-30-shiw",
+      "name": "PN. SITI HAFIZAH BINTI ABD HAMID",
+      "staffId": "G1030",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-31-oamr",
+      "name": "EN. MUHAMMAD ALIF IZZUDDIN BIN ROSLI",
+      "staffId": "G1031",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-32-0d7j",
+      "name": "PN. A’ISYAH BINTI HAJI MOHD ROSELI",
+      "staffId": "G1032",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-33-2sz5",
+      "name": "PN. AFIZAH BINTI ABU BAKAR",
+      "staffId": "G1033",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-34-28pb",
+      "name": "CIK PREMLAH A/P ELANGOVAN",
+      "staffId": "G1034",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-35-zam6",
+      "name": "PN. NORJIHAN BINTI JOHARI",
+      "staffId": "G1035",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-36-oa3z",
+      "name": "PN. NUR HIDAYAH BINTI MAT ROF",
+      "staffId": "G1036",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-37-dx1t",
+      "name": "PN. ROSLINA BINTI MOHD DAMANHURI",
+      "staffId": "G1037",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-38-mx5w",
+      "name": "PN. SITI SARAH BINTI YUSUF",
+      "staffId": "G1038",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-39-hedx",
+      "name": "PN. RAFIZAWATI BINTI RAMLI",
+      "staffId": "G1039",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-40-l9bk",
+      "name": "PN. FARAH HANINI BINTI ABD MAUMIN",
+      "staffId": "G1040",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-41-ytnz",
+      "name": "PN. MARLIZA BINTI MOKHTAR @ MOHD MOTHER",
+      "staffId": "G1041",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-42-fd4z",
+      "name": "PN. NUR FARADILA BINTI AWANG CHIK",
+      "staffId": "G1042",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-43-7u8m",
+      "name": "PN. ARIBAH BINTI UTHMAN",
+      "staffId": "G1043",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-44-py05",
+      "name": "PN. SALIZA BINTI KADIR",
+      "staffId": "G1044",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-45-abax",
+      "name": "EN. MUHAMMAD AMMEER AIMAN BIN ABD JALIL",
+      "staffId": "G1045",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-46-csxu",
+      "name": "PN. DOLIKAR FONA BINTI KAMALUDDIN",
+      "staffId": "G1046",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-47-oxb6",
+      "name": "PN. ZAMILAH BINTI AHMAD ZAMRI",
+      "staffId": "G1047",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-48-5kqw",
+      "name": "PN. AZIZAH BT ABDULLAH",
+      "staffId": "G1048",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-49-4qnm",
+      "name": "PN. MARINI BINTI MUHAMMAD",
+      "staffId": "G1049",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-50-ax1e",
+      "name": "DATIN AZLINA BINTI AZIZ",
+      "staffId": "G1050",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-51-2qo0",
+      "name": "PN. ZARINA BINTI MAT DANI",
+      "staffId": "G1051",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-52-nucw",
+      "name": "PN. IZZATUNNISAK BINTI AHMAD SHAHBUDIN",
+      "staffId": "G1052",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-53-sc5z",
+      "name": "PN. NUR FADZLINA BINTI KHAIRUDDIN",
+      "staffId": "G1053",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-54-tg4l",
+      "name": "EN. MUHAMMAD ABDELLAH BIN MOHD SARIF",
+      "staffId": "G1054",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-55-nj7v",
+      "name": "EN. ABUL MUSLIM BIN HUSSEIN",
+      "staffId": "G1055",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-56-0pmj",
+      "name": "EN. MOHD RAZIF BIN ABDUL RAHMAN",
+      "staffId": "G1056",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-57-b9qe",
+      "name": "PN. SURAIMI BINTI YOUP",
+      "staffId": "G1057",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-58-wqkz",
+      "name": "PN. AZLINA BINTI MOHD NOOR",
+      "staffId": "G1058",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-59-x9tu",
+      "name": "EN. RAHIMAN BIN MOHD ZAIN @ AB RAZAK",
+      "staffId": "G1059",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-60-lwsw",
+      "name": "PN. NORNIZMA BINTI MOHD YUNOH",
+      "staffId": "G1060",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-61-crz9",
+      "name": "PN. KASTHURI BAI A/P MUNIANDY",
+      "staffId": "G1061",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-62-q8wu",
+      "name": "PN. WAN ROHANI BINTI WAN DERAMAN",
+      "staffId": "G1062",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-63-o3k5",
+      "name": "EN. MOHD KHAIRUL AMILI BIN MOHD NOR",
+      "staffId": "G1063",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-64-ojob",
+      "name": "PN. SYUZAIDI BINTI SHAFIA",
+      "staffId": "G1064",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-65-9iw2",
+      "name": "PN. MALINI A/P MADHAVAN",
+      "staffId": "G1065",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-66-hmn0",
+      "name": "CIK MARDHIYATUN NUR AQILAH BINTI MD HARIS",
+      "staffId": "G1066",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-67-ntcb",
+      "name": "EN. ALIF ZIKRI FITRI BIN ZULKIFLI",
+      "staffId": "G1067",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-68-745o",
+      "name": "PN. NUR FATIN ATHIRAH BINTI ZULIHSAN",
+      "staffId": "G1068",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-69-apfc",
+      "name": "PN. NURUL INTAN BINTI ISMAIL",
+      "staffId": "G1069",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-70-al1w",
+      "name": "PN. MARINA BINTI ABU",
+      "staffId": "G1070",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-71-5fjc",
+      "name": "CIK SITI AZIFAH BINTI YAAKOB",
+      "staffId": "G1071",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810356-72-brbv",
+      "name": "PN. NOOR ARINA NADIAH BINTI ABDUL RAZAK",
+      "staffId": "G1072",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-73-8040",
+      "name": "EN. MUHAMMAD NADZIRUL HAZIQ BIN OTHMAN",
+      "staffId": "G1073",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-74-whu9",
+      "name": "EN. MUHAMMAD FIRDAUS BIN SALLEH",
+      "staffId": "G1074",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-75-msks",
+      "name": "EN. MOHD NAZRI BIN SAMSUDDIN",
+      "staffId": "G1075",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-76-ojnm",
+      "name": "EN. MOHD BAIETH RAHMANI BIN MOHD LUKHMAN",
+      "staffId": "G1076",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-77-i7ol",
+      "name": "PN. NAJIDAH BINTI ZAKARIYA",
+      "staffId": "G1077",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-78-gzld",
+      "name": "PN. NOR FAZIRA BINTI ZAINUDDIN",
+      "staffId": "G1078",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-79-b6u3",
+      "name": "EN. KHAIRIL ASWAN BIN HARA BAYNI",
+      "staffId": "G1079",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-80-2hav",
+      "name": "EN. WAN MOHD IRWAN KHAIRI BIN WAN ISHAK",
+      "staffId": "G1080",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-81-yi37",
+      "name": "PN. ANNIS FARHAH BINTI DARHAM",
+      "staffId": "G1081",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-82-3cnv",
+      "name": "PN. CHE HASMAMIZAH BINTI CHE HASSAN",
+      "staffId": "G1082",
+      "gender": "P",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-83-tept",
+      "name": "EN. ROSZIZUL RAHMAN BIN NAZRI",
+      "staffId": "G1083",
+      "gender": "L",
+      "session": "Pagi",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-84-qb02",
+      "name": "PN. SITI NOOR FATMAWATI BINTI MOHAMED",
+      "staffId": "G1084",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-85-dcq6",
+      "name": "EN. MOHD FAIZ BIN MOHD SOBARI",
+      "staffId": "G1085",
+      "gender": "L",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-86-0dlw",
+      "name": "PN. TENGKU AINAA AMIRA BINTI TENGKU ARIFIN",
+      "staffId": "G1086",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-87-bwsg",
+      "name": "CIK MIZAN QISTINA HULWANI BINTI ISHAK",
+      "staffId": "G1087",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-88-5au0",
+      "name": "PN. YOGESWARI A/P VELMURUGAN",
+      "staffId": "G1088",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-89-iz9n",
+      "name": "PN. ROSNI BINTI HAMZAH",
+      "staffId": "G1089",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-90-nazy",
+      "name": "PN. NURUL AMIRAH BINTI IRAMAN",
+      "staffId": "G1090",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-91-qplc",
+      "name": "PN. KIRRTANAA A/P MURALITHARAN",
+      "staffId": "G1091",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-92-iapl",
+      "name": "PN. HABIBAH BINTI ZAINUDIN",
+      "staffId": "G1092",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-93-y27z",
+      "name": "PN. NURUL IZZATI BINTI MOHD ZAKI",
+      "staffId": "G1093",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-94-lm2d",
+      "name": "PN. NUR SAADAH BINTI RIDZUAN",
+      "staffId": "G1094",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-95-v9jg",
+      "name": "PN. HASLIENA BINTI HUSSIN",
+      "staffId": "G1095",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-96-54ge",
+      "name": "CIK ANUSHIYA A/P KARUNANETHI",
+      "staffId": "G1096",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-97-ckie",
+      "name": "EN. ZAYADI BIN HARON",
+      "staffId": "G1097",
+      "gender": "L",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-98-6gqm",
+      "name": "PN. ROHAIZUM BINTI ABDUL HALIM",
+      "staffId": "G1098",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-99-3wts",
+      "name": "PN. SHAHANIM BINTI MOHD SHAHAR",
+      "staffId": "G1099",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-100-tr03",
+      "name": "PN. SITI NUR AISYAH BINTI SYARUL IZUDIN",
+      "staffId": "G1100",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-101-swx9",
+      "name": "PN. NUR MUNIRAH BINTI SHAARI",
+      "staffId": "G1101",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-102-lh26",
+      "name": "PN. SALMI SUHANEY BINTI ABDUL RAHMAN",
+      "staffId": "G1102",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-103-4wzi",
+      "name": "EN. LUKMAN BIN YAJID",
+      "staffId": "G1103",
+      "gender": "L",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-104-hlvh",
+      "name": "PN. SUHAILA BINTI AHMAD",
+      "staffId": "G1104",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-105-qd0u",
+      "name": "PN. NOR HILMIAH BINTI HASUNI",
+      "staffId": "G1105",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-106-8572",
+      "name": "PN. ROHAYU BINTI MIK DIN",
+      "staffId": "G1106",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-107-ewel",
+      "name": "CIK FADHLINA ADIBA BINTI AHMAD ADIB AZHAN",
+      "staffId": "G1107",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-108-fwnr",
+      "name": "EN. MUHAMMAD NUR AIMAN BIN ZAIDI",
+      "staffId": "G1108",
+      "gender": "L",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-109-ovgj",
+      "name": "CIK WAN NOR HAFIZAH BINTI WAN MOHD RUSDI",
+      "staffId": "G1109",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-110-cgb4",
+      "name": "CIK SINDU A/P RAMASUNDRAN",
+      "staffId": "G1110",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-111-ju8o",
+      "name": "PN. NORHANA SALWANI BINTI MAT ZIN",
+      "staffId": "G1111",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-112-itcb",
+      "name": "PN. RODZIAH BINTI SAPIAN",
+      "staffId": "G1112",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-113-qhu5",
+      "name": "EN. MUHAMMAD NAQIB AIMAN BIN MUHAMMAD NAZRI",
+      "staffId": "G1113",
+      "gender": "L",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-114-ngk0",
+      "name": "PN. ROSMINI BINTI MAHMOOD",
+      "staffId": "G1114",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-115-8g9d",
+      "name": "EN. HAMIZI BIN HASSAN",
+      "staffId": "G1115",
+      "gender": "L",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-116-llxn",
+      "name": "PN. NOR AZILAH BINTI ZAKARIA",
+      "staffId": "G1116",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-117-rer1",
+      "name": "EN. MUHAMMAD AIMAN SYIHABUDDIN BIN ABD.RAHIM",
+      "staffId": "G1117",
+      "gender": "L",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-118-1f5e",
+      "name": "PN. NURATIQAH BINTI MD ROSLAN",
+      "staffId": "G1118",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-119-gg8j",
+      "name": "PN. ROSIE BINTI M RAYA",
+      "staffId": "G1119",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-120-f0m2",
+      "name": "PN. SITI MARDIANA BINTI SOO'AD",
+      "staffId": "G1120",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-121-jh3p",
+      "name": "PN. WAN HASLIZA BINTI W. HASSAN",
+      "staffId": "G1121",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-122-o9c6",
+      "name": "CIK NURHANAN FITRIYAH BINTI ZANUSI",
+      "staffId": "G1122",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "id": "imported-1790558810357-123-bd33",
+      "name": "PN. IKA-LIANA BINTI KHALID",
+      "staffId": "G1123",
+      "gender": "P",
+      "session": "Petang",
+      "grade": "DG41",
+      "phone": "",
+      "email": ""
+    }
+  ],
+  "assignments": [],
+  "units": [
+    {
+      "id": "u-pengakap",
+      "name": "Persekutuan Pengakap Malaysia",
+      "code": "PENGAKAP",
+      "category": "BERUNIFORM",
+      "color": "#D97706",
+      "iconName": "Compass",
+      "description": "Unit pengakap kanak-kanak/muda sekolah",
+      "targetMorning": 4,
+      "targetAfternoon": 3
+    },
+    {
+      "id": "u-krs",
+      "name": "Kadet Remaja Sekolah (KRS / TKRS)",
+      "code": "KRS",
+      "category": "BERUNIFORM",
+      "color": "#059669",
+      "iconName": "Shield",
+      "description": "Unit disiplin dan ketahanan diri KPM",
+      "targetMorning": 4,
+      "targetAfternoon": 3
+    },
+    {
+      "id": "u-ppim",
+      "name": "Pergerakan Puteri Islam Malaysia (PPIM)",
+      "code": "PPIM",
+      "category": "BERUNIFORM",
+      "color": "#DB2777",
+      "iconName": "BookmarkHeart",
+      "description": "Unit pembangunan sahsiah dan keperibadian Islamiah",
+      "targetMorning": 3,
+      "targetAfternoon": 3
+    },
+    {
+      "id": "k-bm",
+      "name": "Persatuan Bahasa Melayu",
+      "code": "PBM",
+      "category": "KELAB",
+      "color": "#7C3AED",
+      "iconName": "BookOpen",
+      "description": "Memperkasa kemahiran berbahasa dan sastera Melayu",
+      "targetMorning": 3,
+      "targetAfternoon": 2
+    },
+    {
+      "id": "k-stem",
+      "name": "Kelab STEM",
+      "code": "STEM",
+      "category": "KELAB",
+      "color": "#0D9488",
+      "iconName": "Cpu",
+      "description": "Pendedahan teknologi kod, robotik dan sains terapan",
+      "targetMorning": 4,
+      "targetAfternoon": 3
+    },
+    {
+      "id": "k-pai",
+      "name": "Persatuan Agama Islam",
+      "code": "PAI",
+      "category": "KELAB",
+      "color": "#16A34A",
+      "iconName": "MoonStar",
+      "description": "Aktiviti kerohanian, tilawah dan dakwah sekolah",
+      "targetMorning": 3,
+      "targetAfternoon": 2
+    },
+    {
+      "id": "k-doktor-muda",
+      "name": "Kelab Doktor Muda",
+      "code": "DRMUDA",
+      "category": "KELAB",
+      "color": "#EA580C",
+      "iconName": "Stethoscope",
+      "description": "Pendidikan kesihatan dan amalan pemakanan sihat",
+      "targetMorning": 3,
+      "targetAfternoon": 2
+    },
+    {
+      "id": "k-kesenian",
+      "name": "Kelab Seni Muzik",
+      "code": "SENI",
+      "category": "KELAB",
+      "color": "#C026D3",
+      "iconName": "Music",
+      "description": "Mencungkil bakat seni persembahan, nyanyian dan kompang",
+      "targetMorning": 3,
+      "targetAfternoon": 2
+    },
+    {
+      "id": "s-bola-sepak",
+      "name": "Kelab Bola Sepak",
+      "code": "BSEPAK",
+      "category": "SUKAN",
+      "color": "#15803D",
+      "iconName": "Activity",
+      "description": "Latihan kemahiran dan taktik bola sepak",
+      "targetMorning": 4,
+      "targetAfternoon": 3
+    },
+    {
+      "id": "s-bola-jaring",
+      "name": "Kelab Bola Jaring",
+      "code": "BJLN",
+      "category": "SUKAN",
+      "color": "#E11D48",
+      "iconName": "Target",
+      "description": "Sukan bola jaring peringkat MSSD",
+      "targetMorning": 3,
+      "targetAfternoon": 2
+    },
+    {
+      "id": "s-badminton",
+      "name": "Kelab Badminton",
+      "code": "BDM",
+      "category": "SUKAN",
+      "color": "#0284C7",
+      "iconName": "Crosshair",
+      "description": "Latihan servis, pukulan kilas dan stamina pemain",
+      "targetMorning": 3,
+      "targetAfternoon": 2
+    },
+    {
+      "id": "s-bola-tampar",
+      "name": "Kelab Bola Tampar",
+      "code": "BTMPR",
+      "category": "SUKAN",
+      "color": "#4F46E5",
+      "iconName": "Volleyball",
+      "description": "Kemahiran smesy, sangga dan hantaran tepat",
+      "targetMorning": 3,
+      "targetAfternoon": 2
+    },
+    {
+      "id": "s-olahraga",
+      "name": "Kelab Olahraga",
+      "code": "OLAH",
+      "category": "SUKAN",
+      "color": "#B45309",
+      "iconName": "Flame",
+      "description": "Pembangunan atlet larian pecut, jarak jauh dan padang",
+      "targetMorning": 4,
+      "targetAfternoon": 3
+    },
+    {
+      "id": "s-catur",
+      "name": "Kelab Catur & Permainan Dalaman",
+      "code": "CATUR",
+      "category": "SUKAN",
+      "color": "#475569",
+      "iconName": "Crown",
+      "description": "Asah fokus, strategi dan catur MSSD",
+      "targetMorning": 2,
+      "targetAfternoon": 2
+    },
+    {
+      "id": "r-bendahara",
+      "name": "Rumah Bendahara (Merah)",
+      "code": "MERAH",
+      "category": "RUMAH_SUKAN",
+      "color": "#EF4444",
+      "iconName": "Flag",
+      "description": "Rumah Sukan Bendahara - Semangat Merah Menyala",
+      "targetMorning": 6,
+      "targetAfternoon": 5
+    },
+    {
+      "id": "r-temenggung",
+      "name": "Rumah Temenggung (Hijau)",
+      "code": "HIJAU",
+      "category": "RUMAH_SUKAN",
+      "color": "#10B981",
+      "iconName": "Flag",
+      "description": "Rumah Sukan Temenggung - Gagah Perkasa Hijau",
+      "targetMorning": 6,
+      "targetAfternoon": 5
+    },
+    {
+      "id": "r-laksamana",
+      "name": "Rumah Laksamana (Biru)",
+      "code": "BIRU",
+      "category": "RUMAH_SUKAN",
+      "color": "#3B82F6",
+      "iconName": "Flag",
+      "description": "Rumah Sukan Laksamana - Lautan Biru Berwibawa",
+      "targetMorning": 6,
+      "targetAfternoon": 5
+    },
+    {
+      "id": "r-syahbandar",
+      "name": "Rumah Syahbandar (Kuning)",
+      "code": "KUNING",
+      "category": "RUMAH_SUKAN",
+      "color": "#F59E0B",
+      "iconName": "Flag",
+      "description": "Rumah Sukan Syahbandar - Kilauan Emas Diraja",
+      "targetMorning": 6,
+      "targetAfternoon": 5
+    },
+    {
+      "id": "u-1790215176684",
+      "name": "PANDU PUTERI TUNAS",
+      "code": "PPT",
+      "category": "BERUNIFORM",
+      "color": "#D97706",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "k-1790217462827",
+      "name": "Persatuan Bahasa Inggeris",
+      "code": "PBI",
+      "category": "KELAB",
+      "color": "#059669",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "k-1790217471918",
+      "name": "Kelab Rukun Negara",
+      "code": "KRN",
+      "category": "KELAB",
+      "color": "#059669",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "k-1790217479252",
+      "name": "Kelab NILAM",
+      "code": "KN",
+      "category": "KELAB",
+      "color": "#059669",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "k-1790217483933",
+      "name": "Kelab ICT",
+      "code": "KI",
+      "category": "KELAB",
+      "color": "#059669",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "k-1790217493185",
+      "name": "Kelab Alam Sekitar",
+      "code": "KAS",
+      "category": "KELAB",
+      "color": "#059669",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "k-1790217507285",
+      "name": "Kelab Keselamatan Jalan Raya",
+      "code": "KKJR",
+      "category": "KELAB",
+      "color": "#059669",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "r-1790217811016",
+      "name": "Rumah Ungu",
+      "code": "RU",
+      "category": "RUMAH_SUKAN",
+      "color": "#DC2626",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "s-1790217863668",
+      "name": "Kelab Ragbi",
+      "code": "KR",
+      "category": "SUKAN",
+      "color": "#2563EB",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "s-1790217906139",
+      "name": "Kelab Bola Baling",
+      "code": "KBB",
+      "category": "SUKAN",
+      "color": "#2563EB",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "k-1790217936308",
+      "name": "Kelab Pencegahan Jenayah",
+      "code": "KPJ",
+      "category": "KELAB",
+      "color": "#059669",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    },
+    {
+      "id": "u-1790258315101",
+      "name": "Bulan Sabit Merah Malaysia (BSMM)",
+      "code": "BSMM",
+      "category": "BERUNIFORM",
+      "color": "#D97706",
+      "iconName": "Sparkles",
+      "targetMorning": 0,
+      "targetAfternoon": 0
+    }
+  ],
+  "settings": {
+    "schoolName": "SEKOLAH KEBANGSAAN AU KERAMAT",
+    "schoolCode": "WBA0053",
+    "academicYear": "2026/2027",
+    "principalName": "EN ZULKAIMI BIN MUHAMMAD",
+    "gpkKokuName": "EN FATHIYAKAN BIN ASMARA",
+    "state": "KUALA LUMPUR",
+    "district": "KERAMAT"
+  },
+  "sheetId": "",
+  "updatedAt": "28 Sep 2026, 1:32 PG"
+}

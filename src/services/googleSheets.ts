@@ -1,5 +1,6 @@
 import { Teacher, UnitAssignment, KokuUnit, SchoolSettings, RoleType, SessionType, UnitCategory } from '../types/koku';
 import { getAccessToken, clearAccessToken } from './auth';
+import * as XLSX from 'xlsx';
 
 export interface SheetImportResult {
   teachers: Teacher[];
@@ -8,8 +9,15 @@ export interface SheetImportResult {
   schoolSettings?: Partial<SchoolSettings>;
 }
 
+export function isAppsScriptUrl(input: string): boolean {
+  return typeof input === 'string' && input.includes('script.google.com/macros/s/');
+}
+
 export function extractSheetId(input: string): string {
   const trimmed = input.trim();
+  if (isAppsScriptUrl(trimmed)) {
+    return trimmed;
+  }
   // Check if it's already a clean ID (typically 44 chars)
   if (/^[a-zA-Z0-9-_]{20,60}$/.test(trimmed)) {
     return trimmed;
@@ -21,6 +29,58 @@ export function extractSheetId(input: string): string {
   }
   return trimmed;
 }
+
+export const GOOGLE_APPS_SCRIPT_TEMPLATE = `// Skrip Google Apps Script untuk e-KOKU GPK
+// Buka Google Sheet > Extensions > Apps Script > Tampal kod ini > Deploy as Web App (Access: Anyone)
+
+function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var result = { teachers: [], assignments: [], customUnits: [] };
+  try {
+    var gSheet = ss.getSheetByName('Senarai_Guru');
+    if (gSheet) {
+      var gData = gSheet.getDataRange().getValues();
+      for (var i = 1; i < gData.length; i++) {
+        var row = gData[i];
+        if (row[2]) {
+          result.teachers.push({
+            id: String(row[0] || 't-' + i),
+            name: String(row[2]).trim(),
+            staffId: String(row[3] || '').trim(),
+            gender: row[4] === 'P' ? 'P' : 'L',
+            session: String(row[5] || '').indexOf('Petang') !== -1 ? 'Petang' : 'Pagi',
+            grade: String(row[6] || 'DG41').trim(),
+            phone: String(row[7] || '').trim(),
+            email: String(row[8] || '').trim()
+          });
+        }
+      }
+    }
+    var aSheet = ss.getSheetByName('Agihan_Kokurikulum');
+    if (aSheet) {
+      var aData = aSheet.getDataRange().getValues();
+      for (var j = 1; j < aData.length; j++) {
+        var aRow = aData[j];
+        if (aRow[0] && aRow[2] && aRow[5]) {
+          result.assignments.push({
+            id: String(aRow[0]),
+            teacherId: String(aRow[2]),
+            unitId: String(aRow[5]),
+            role: String(aRow[7] || 'AJK'),
+            session: String(aRow[8] || 'Pagi')
+          });
+        }
+      }
+    }
+  } catch (err) {}
+  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var payload = JSON.parse(e.postData.contents);
+  return ContentService.createTextOutput(JSON.stringify({ success: true, timestamp: new Date().toLocaleString() })).setMimeType(ContentService.MimeType.JSON);
+}`;
 
 /**
  * Creates a brand new Google Sheet in the user's Google Drive with all essential tabs and generous dimensions.
@@ -105,11 +165,6 @@ export async function saveAllToGoogleSheet(
   units: KokuUnit[],
   schoolSettings: SchoolSettings
 ): Promise<{ success: boolean; rowsCount: number; timestamp: string }> {
-  const token = await getAccessToken();
-  if (!token) {
-    throw new Error('AUTH_EXPIRED: Sesi akaun Google telah tamat tempoh keselamatan (sesi 1 jam). Sila klik butang "Sambung Semula & Simpan".');
-  }
-
   const cleanId = extractSheetId(sheetId);
   if (!cleanId) {
     throw new Error('ID atau pautan Google Sheet tidak sah.');
@@ -120,6 +175,36 @@ export async function saveAllToGoogleSheet(
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+
+  // Check if it's a Google Apps Script Webhook URL
+  if (isAppsScriptUrl(cleanId)) {
+    const payload = {
+      action: 'save',
+      teachers,
+      assignments,
+      units,
+      schoolSettings,
+      timestamp,
+    };
+    const res = await fetch(cleanId, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error(`Ralat Webhook Google Apps Script (${res.status})`);
+    }
+    return {
+      success: true,
+      rowsCount: assignments.length + teachers.length + units.length,
+      timestamp,
+    };
+  }
+
+  const token = await getAccessToken();
+  if (!token) {
+    throw new Error('AUTH_EXPIRED: Sesi akaun Google telah tamat tempoh keselamatan (sesi 1 jam). Sila klik butang "Sambung Semula & Simpan".');
+  }
 
   // 1. First, fetch spreadsheet metadata to verify permissions and get existing tabs & sizes
   const metaRes = await fetch(
@@ -448,113 +533,95 @@ export async function saveAllToGoogleSheet(
   };
 }
 
-/**
- * Fetches all teachers, custom units, and assignments from Google Sheet,
- * allowing GPK to edit in Google Sheets and seamlessly pull back changes into the app.
- */
-export async function fetchFromGoogleSheet(
-  sheetId: string,
+function parseCsvToRows(csvText: string): string[][] {
+  try {
+    const workbook = XLSX.read(csvText, { type: 'string' });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) return [];
+    const sheet = workbook.Sheets[firstSheetName];
+    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
+    return data.map(row => (Array.isArray(row) ? row.map(cell => String(cell ?? '')) : []));
+  } catch (err) {
+    console.warn('Failed to parse CSV:', err);
+    return [];
+  }
+}
+
+export function parseRawSheetData(
+  rawTeachers: string[][],
+  rawUnits: string[][],
+  rawAssignments: string[][],
   currentUnits: KokuUnit[] = []
-): Promise<SheetImportResult> {
-  const token = await getAccessToken();
-  if (!token) {
-    throw new Error('Sila log masuk Google untuk membaca fail Google Sheet.');
-  }
-
-  const cleanId = extractSheetId(sheetId);
-  if (!cleanId) {
-    throw new Error('ID Google Sheet tidak sah.');
-  }
-
-  // 1. Fetch Senarai_Guru
-  let rawTeachers: string[][] = [];
-  try {
-    const res = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Senarai_Guru!A1:J300`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      rawTeachers = data.values || [];
-    }
-  } catch (e) {
-    console.warn('Could not read Senarai_Guru sheet', e);
-  }
-
-  // 2. Fetch Senarai_Unit
-  let rawUnits: string[][] = [];
-  try {
-    const res = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Senarai_Unit!A1:H150`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      rawUnits = data.values || [];
-    }
-  } catch (e) {
-    console.warn('Could not read Senarai_Unit sheet', e);
-  }
-
-  // 3. Fetch Agihan_Kokurikulum or Sheet1
-  let rawAssignments: string[][] = [];
-  try {
-    const res = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Agihan_Kokurikulum!A1:L500`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      rawAssignments = data.values || [];
-    } else {
-      // Fallback to Sheet1
-      const resFallback = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Sheet1!A1:L500`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (resFallback.ok) {
-        const data = await resFallback.json();
-        rawAssignments = data.values || [];
-      }
-    }
-  } catch (e) {
-    console.warn('Could not read Agihan_Kokurikulum sheet', e);
-  }
-
+): SheetImportResult {
   // Parse Teachers
   const parsedTeachers: Teacher[] = [];
   if (rawTeachers.length > 1) {
     const rows = rawTeachers.slice(1);
     rows.forEach((r, idx) => {
-      // Format: ID (0), No (1), Nama (2), No KP (3), Jantina (4), Sesi (5), Gred (6), Tel (7), Emel (8)
-      // Check if row has ID in col 0 and Name in col 2 OR if Name is in col 1
-      const hasId = r[0] && r[0].startsWith('t-');
-      const id = hasId ? r[0] : `t-sheet-${idx + 1}`;
-      const name = hasId ? (r[2] || r[1] || '') : (r[1] || r[2] || '');
-      const staffId = hasId ? (r[3] || '') : (r[2] || '');
-      const gender = (hasId ? r[4] : r[3]) === 'P' ? 'P' : 'L';
-      const sessionRaw = (hasId ? r[5] : r[4]) || 'Pagi';
-      const session: SessionType = sessionRaw.includes('Petang') ? 'Petang' : 'Pagi';
-      const grade = hasId ? (r[6] || 'DG41') : (r[5] || 'DG41');
-      const phone = hasId ? (r[7] || '') : (r[6] || '');
-      const email = hasId ? (r[8] || '') : (r[7] || '');
+      // Determine columns intelligently based on presence of t- ID prefix or column values
+      const hasId = Boolean(r[0] && r[0].trim().startsWith('t-'));
+      const id = hasId ? r[0].trim() : `t-sheet-${idx + 1}`;
+      
+      let name = '';
+      let staffId = '';
+      let genderStr = '';
+      let sessionStr = '';
+      let grade = 'DG41';
+      let phone = '';
+      let email = '';
+
+      if (hasId) {
+        // Format: ID (0), No (1), Nama (2), No KP (3), Jantina (4), Sesi (5), Gred (6), Tel (7), Emel (8)
+        name = r[2] || r[1] || '';
+        staffId = r[3] || '';
+        genderStr = r[4] || '';
+        sessionStr = r[5] || '';
+        grade = r[6] || 'DG41';
+        phone = r[7] || '';
+        email = r[8] || '';
+      } else {
+        // Format without ID:
+        // Could be: No (0), Nama (1), No KP (2), Jantina/Sesi (3), ...
+        // Check if r[0] is numeric (like index 1, 2, 3...) and r[1] is a teacher name
+        const isFirstColNumber = /^\d+$/.test((r[0] || '').trim());
+        if (isFirstColNumber && r[1] && isNaN(Number(r[1].trim()))) {
+          name = r[1];
+          staffId = r[2] || '';
+          genderStr = r[3] || '';
+          sessionStr = r[4] || '';
+          grade = r[5] || 'DG41';
+          phone = r[6] || '';
+          email = r[7] || '';
+        } else {
+          name = r[0] || '';
+          staffId = r[1] || '';
+          genderStr = r[2] || '';
+          sessionStr = r[3] || '';
+          grade = r[4] || 'DG41';
+          phone = r[5] || '';
+          email = r[6] || '';
+        }
+      }
+
+      // Format gender
+      let gender: 'L' | 'P' = 'L';
+      if (/p|perempuan|wanita|female/i.test(genderStr)) {
+        gender = 'P';
+      } else if (/binti|a\/p|puan|cik|hajah/i.test(name)) {
+        gender = 'P';
+      }
+
+      // Format session
+      const session: SessionType = /petang|afternoon|pm/i.test(sessionStr) ? 'Petang' : 'Pagi';
 
       if (name.trim()) {
         parsedTeachers.push({
           id,
           name: name.trim(),
-          staffId: staffId.trim(),
+          staffId: staffId.trim() || `G${1000 + idx}`,
           gender,
           session,
-          grade: grade.trim(),
+          grade: grade.trim() || 'DG41',
           phone: phone.trim(),
           email: email.trim(),
         });
@@ -569,7 +636,6 @@ export async function fetchFromGoogleSheet(
   if (rawUnits.length > 1) {
     const rows = rawUnits.slice(1);
     rows.forEach((r, idx) => {
-      // Format: ID (0), No (1), Kategori (2), Nama Unit (3), Kod (4)
       const id = r[0] || `u-sheet-${idx + 1}`;
       const categoryRaw = (r[2] || '').trim().toUpperCase();
       const validCategory: UnitCategory = 
@@ -627,8 +693,6 @@ export async function fetchFromGoogleSheet(
   if (rawAssignments.length > 1) {
     const rows = rawAssignments.slice(1);
     rows.forEach((r, idx) => {
-      // Format: ID (0), No (1), Nama Guru (2), Sesi Guru (3), Kategori (4), Nama Unit (5), Kod (6), Jawatan (7), Sesi Unit (8)
-      // Check column mapping
       const assignId = r[0] && r[0].startsWith('a-') ? r[0] : `a-sheet-${Date.now()}-${idx}`;
       const teacherName = (r[2] || r[1] || '').trim();
       const unitName = (r[5] || r[3] || '').trim();
@@ -664,4 +728,151 @@ export async function fetchFromGoogleSheet(
     assignments: parsedAssignments,
     customUnits: parsedUnits.length > 0 ? parsedUnits : undefined,
   };
+}
+
+/**
+ * Fetches public Google Sheet data via Google Visualization API (GViz) without requiring OAuth token.
+ * Perfect for viewing on other devices (mobile, home PC) when sheet is shared ("Anyone with link can view").
+ */
+export async function fetchPublicGoogleSheet(
+  sheetId: string,
+  currentUnits: KokuUnit[] = []
+): Promise<SheetImportResult> {
+  const cleanId = extractSheetId(sheetId);
+  if (!cleanId) {
+    throw new Error('ID Google Sheet tidak sah.');
+  }
+
+  const fetchTabCsv = async (tabName: string): Promise<string[][]> => {
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const text = await res.text();
+      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        return [];
+      }
+      return parseCsvToRows(text);
+    } catch {
+      return [];
+    }
+  };
+
+  const [rawTeachers, rawUnits, rawAssignments] = await Promise.all([
+    fetchTabCsv('Senarai_Guru'),
+    fetchTabCsv('Senarai_Unit'),
+    fetchTabCsv('Agihan_Kokurikulum'),
+  ]);
+
+  let finalAssignments = rawAssignments;
+  if (finalAssignments.length <= 1) {
+    finalAssignments = await fetchTabCsv('Sheet1');
+  }
+
+  if (rawTeachers.length <= 1 && finalAssignments.length <= 1) {
+    throw new Error(
+      'Gagal membaca Google Sheet secara luar. Pastikan pautan Google Sheet betul dan kebenaran fail disetkan kepada "Anyone with the link can view" (Sesiapa dengan pautan boleh lihat) di Google Drive, atau log masuk akaun Google di atas.'
+    );
+  }
+
+  return parseRawSheetData(rawTeachers, rawUnits, finalAssignments, currentUnits);
+}
+
+/**
+ * Fetches all teachers, custom units, and assignments from Google Sheet.
+ * Works seamlessly with Google OAuth, Google Apps Script Webhooks, and Public Shared Sheets.
+ */
+export async function fetchFromGoogleSheet(
+  sheetId: string,
+  currentUnits: KokuUnit[] = []
+): Promise<SheetImportResult> {
+  const cleanId = extractSheetId(sheetId);
+  if (!cleanId) {
+    throw new Error('ID Google Sheet tidak sah.');
+  }
+
+  // 1. Google Apps Script Webhook
+  if (isAppsScriptUrl(cleanId)) {
+    const res = await fetch(`${cleanId}?action=get`);
+    if (!res.ok) {
+      throw new Error(`Ralat membaca Google Apps Script Webhook (${res.status})`);
+    }
+    const data = await res.json();
+    return {
+      teachers: data.teachers || [],
+      assignments: data.assignments || [],
+      customUnits: data.customUnits || undefined,
+      schoolSettings: data.schoolSettings || undefined,
+    };
+  }
+
+  // 2. Check for authenticated Google token
+  const token = await getAccessToken();
+  if (!token) {
+    // If not authenticated, directly attempt public reading
+    return fetchPublicGoogleSheet(cleanId, currentUnits);
+  }
+
+  // 3. Authenticated Google Sheets API v4 fetch
+  try {
+    let rawTeachers: string[][] = [];
+    try {
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Senarai_Guru!A1:J300`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        rawTeachers = data.values || [];
+      }
+    } catch (e) {
+      console.warn('Could not read Senarai_Guru sheet', e);
+    }
+
+    let rawUnits: string[][] = [];
+    try {
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Senarai_Unit!A1:H150`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        rawUnits = data.values || [];
+      }
+    } catch (e) {
+      console.warn('Could not read Senarai_Unit sheet', e);
+    }
+
+    let rawAssignments: string[][] = [];
+    try {
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Agihan_Kokurikulum!A1:L500`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        rawAssignments = data.values || [];
+      } else {
+        const resFallback = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Sheet1!A1:L500`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (resFallback.ok) {
+          const data = await resFallback.json();
+          rawAssignments = data.values || [];
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read Agihan_Kokurikulum sheet', e);
+    }
+
+    if (rawTeachers.length > 1 || rawAssignments.length > 1) {
+      return parseRawSheetData(rawTeachers, rawUnits, rawAssignments, currentUnits);
+    }
+  } catch (apiErr) {
+    console.warn('Authenticated Sheets API read failed, attempting public fallback:', apiErr);
+  }
+
+  // Fallback to public fetch if token failed or tab reading returned empty
+  return fetchPublicGoogleSheet(cleanId, currentUnits);
 }

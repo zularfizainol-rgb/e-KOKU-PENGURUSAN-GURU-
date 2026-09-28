@@ -25,7 +25,7 @@ import {
 } from './types/koku';
 import { detectTeacherConflicts, exportMatrixToExcel } from './utils/kokuHelpers';
 import { initAuth } from './services/auth';
-import { saveAllToGoogleSheet } from './services/googleSheets';
+import { saveAllToGoogleSheet, fetchFromGoogleSheet, extractSheetId } from './services/googleSheets';
 
 import { Navbar } from './components/Navbar';
 import { MasterTableView } from './components/MasterTableView';
@@ -36,20 +36,21 @@ import { GoogleSheetSyncModal } from './components/GoogleSheetSyncModal';
 import { ExcelImportModal } from './components/ExcelImportModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { EditTeacherModal } from './components/EditTeacherModal';
-import { Trash2, Sparkles } from 'lucide-react';
+import { Trash2, Sparkles, Smartphone } from 'lucide-react';
 
 export default function App() {
-  // State from LocalStorage or Defaults (Cleaned for real data)
+  // State from LocalStorage or Defaults
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
-    const isCleaned = localStorage.getItem('ekoku_data_cleared_for_real_v1');
-    if (!isCleaned) {
-      localStorage.setItem('ekoku_data_cleared_for_real_v1', 'true');
-      localStorage.removeItem('ekoku_teachers');
-      localStorage.removeItem('ekoku_assignments');
-      return [];
-    }
     const saved = localStorage.getItem('ekoku_teachers');
-    return saved ? JSON.parse(saved) : DEFAULT_TEACHERS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn('Gagal membaca teachers tempatan:', e);
+      }
+    }
+    return DEFAULT_TEACHERS;
   });
 
   const [units, setUnits] = useState<KokuUnit[]>(() => {
@@ -58,12 +59,16 @@ export default function App() {
   });
 
   const [assignments, setAssignments] = useState<UnitAssignment[]>(() => {
-    const isCleaned = localStorage.getItem('ekoku_data_cleared_for_real_v1');
-    if (!isCleaned) {
-      return [];
-    }
     const saved = localStorage.getItem('ekoku_assignments');
-    return saved ? JSON.parse(saved) : DEFAULT_ASSIGNMENTS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn('Gagal membaca assignments tempatan:', e);
+      }
+    }
+    return DEFAULT_ASSIGNMENTS;
   });
 
   const [settings, setSettings] = useState<SchoolSettings>(() => {
@@ -72,6 +77,15 @@ export default function App() {
   });
 
   const [sheetId, setSheetId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlSheet = params.get('sheet') || params.get('sheetId');
+      if (urlSheet) {
+        const cleaned = extractSheetId(urlSheet);
+        localStorage.setItem('ekoku_sheet_id', cleaned);
+        return cleaned;
+      }
+    }
     return localStorage.getItem('ekoku_sheet_id') || '';
   });
 
@@ -155,6 +169,110 @@ export default function App() {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);
+
+  // 1. Initial Mount: Load Shared Cloud Database across devices
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/cloud-database');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.exists && json.data && isMounted) {
+            const { teachers: cloudTeachers, assignments: cloudAssignments, units: cloudUnits, settings: cloudSettings, sheetId: cloudSheetId } = json.data;
+            if (Array.isArray(cloudTeachers) && cloudTeachers.length > 0) {
+              setTeachers(cloudTeachers);
+            }
+            if (Array.isArray(cloudAssignments) && cloudAssignments.length > 0) {
+              setAssignments(cloudAssignments);
+            }
+            if (Array.isArray(cloudUnits) && cloudUnits.length > 0) {
+              setUnits(cloudUnits);
+            }
+            if (cloudSettings) {
+              setSettings(prev => ({ ...prev, ...cloudSettings }));
+            }
+            if (cloudSheetId) {
+              setSheetId(cloudSheetId);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal memuat turun data dari pelayan awan:', err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Debounced save to shared cloud database whenever data changes
+  const cloudSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (cloudSaveTimerRef.current) {
+      clearTimeout(cloudSaveTimerRef.current);
+    }
+    cloudSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch('/api/cloud-database', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            teachers,
+            assignments,
+            units,
+            settings,
+            sheetId,
+          }),
+        });
+      } catch (err) {
+        console.warn('Gagal menyimpan ke pangkalan data awan:', err);
+      }
+    }, 1500);
+
+    return () => {
+      if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
+    };
+  }, [teachers, assignments, units, settings, sheetId]);
+
+  // Multi-device synchronization:
+  // If user opens a shared link (?sheet=...) or this device has sheetId, load from Google Sheet!
+  const hasAttemptedSheetSync = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const urlSheet = params.get('sheet') || params.get('sheetId');
+    const targetSheetId = urlSheet ? extractSheetId(urlSheet) : sheetId;
+
+    if (targetSheetId && (!hasAttemptedSheetSync.current || urlSheet)) {
+      hasAttemptedSheetSync.current = true;
+      (async () => {
+        try {
+          setIsSyncing(true);
+          const data = await fetchFromGoogleSheet(targetSheetId, units);
+          if (data.teachers.length > 0 || data.assignments.length > 0) {
+            setTeachers(data.teachers);
+            setAssignments(data.assignments);
+            if (data.customUnits && data.customUnits.length > 0) {
+              setUnits(data.customUnits);
+            }
+            if (data.schoolSettings) {
+              setSettings(prev => ({ ...prev, ...data.schoolSettings }));
+            }
+            showToast(`Pangkalan data Google Sheet berjaya dimuatkan ke peranti ini! (${data.teachers.length} guru)`);
+          }
+        } catch (err: unknown) {
+          console.warn('Auto-sync dari Google Sheet pada peranti ini:', err);
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.includes('Anyone with the link') || msg.includes('kebenaran') || msg.includes('401') || msg.includes('403')) {
+            showToast('Google Sheet dikesan, tetapi fail perlu disetkan kepada "Anyone with link can view" di Drive atau log masuk.', 'warning');
+          }
+        } finally {
+          setIsSyncing(false);
+        }
+      })();
+    }
+  }, [sheetId]);
 
   // Background Debounced Auto-Save to Google Sheet (Layer 2 unlimited cloud persistence)
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -349,13 +467,31 @@ export default function App() {
     setIsClearConfirmOpen(true);
   };
 
-  const handleConfirmClearAll = () => {
+  const handleConfirmClearAll = async () => {
     setTeachers([]);
     setAssignments([]);
     localStorage.removeItem('ekoku_teachers');
     localStorage.removeItem('ekoku_assignments');
+    
+    // Also remove redundant cloud database records
+    try {
+      await fetch('/api/cloud-database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teachers: [],
+          assignments: [],
+          units,
+          settings,
+          sheetId: '',
+        }),
+      });
+    } catch (e) {
+      console.warn('Gagal mengosongkan pangkalan data awan:', e);
+    }
+
     setIsClearConfirmOpen(false);
-    showToast('Semua data contoh guru dan agihan telah dikosongkan. Sedia untuk data sekolah sebenar.', 'info');
+    showToast('Pangkalan data telah dikosongkan sepenuhnya. Sedia untuk data sekolah sebenar.', 'info');
   };
 
   // Reset to full sample data
@@ -420,6 +556,32 @@ export default function App() {
 
       {/* Main Container Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
+        {/* Multi-Device / Smartphone Sync Helper Banner */}
+        {!sheetId && (
+          <div className="mb-4 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Smartphone className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-slate-800 dark:text-slate-100 block text-xs">
+                  Buka di telefon atau peranti lain?
+                </span>
+                <span className="text-slate-600 dark:text-slate-400 text-[11px]">
+                  Sambungkan Google Sheet sekolah atau imbas Kod QR untuk memuatkan data guru &amp; unit kokurikulum ke telefon anda.
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsGoogleSheetModalOpen(true)}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shrink-0 shadow-xs cursor-pointer transition-colors"
+            >
+              Sambung Sheet / Kod QR
+            </button>
+          </div>
+        )}
+
         {/* TAB 1: MASTER TABLE VIEW */}
         {activeTab === 'master' && (
           <MasterTableView
@@ -549,6 +711,7 @@ export default function App() {
         onToggleAutoSync={setAutoSyncEnabled}
         onManualSyncNow={handleManualSyncNow}
         isSyncing={isSyncing}
+        onClearAllData={handleClearAllData}
         onImportSheetData={(newTeachers, newAssignments, newCustomUnits) => {
           if (newTeachers && newTeachers.length > 0) {
             setTeachers(newTeachers);
