@@ -23,7 +23,7 @@ import {
   UnitCategory, 
   ConflictIssue 
 } from './types/koku';
-import { detectTeacherConflicts, exportMatrixToExcel } from './utils/kokuHelpers';
+import { detectTeacherConflicts, exportMatrixToExcel, isValidTeacherName } from './utils/kokuHelpers';
 import { initAuth } from './services/auth';
 import { saveAllToGoogleSheet, fetchFromGoogleSheet, extractSheetId } from './services/googleSheets';
 
@@ -35,6 +35,7 @@ import { ConflictModal } from './components/ConflictModal';
 import { GoogleSheetSyncModal } from './components/GoogleSheetSyncModal';
 import { ExcelImportModal } from './components/ExcelImportModal';
 import { PrintReportModal } from './components/PrintReportModal';
+import { AppointmentLetterModal } from './components/AppointmentLetterModal';
 import { EditTeacherModal } from './components/EditTeacherModal';
 import { Trash2, Sparkles, Smartphone } from 'lucide-react';
 
@@ -45,7 +46,10 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const cleaned = parsed.filter(t => t && t.name && isValidTeacherName(t.name));
+          if (cleaned.length > 0) return cleaned;
+        }
       } catch (e) {
         console.warn('Gagal membaca teachers tempatan:', e);
       }
@@ -108,6 +112,8 @@ export default function App() {
   const [isGoogleSheetModalOpen, setIsGoogleSheetModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isAppointmentLetterOpen, setIsAppointmentLetterOpen] = useState(false);
+  const [teacherForLetter, setTeacherForLetter] = useState<Teacher | null>(null);
   const [isEditTeacherModalOpen, setIsEditTeacherModalOpen] = useState(false);
   const [teacherToEdit, setTeacherToEdit] = useState<Teacher | null>(null);
   const [filterConflictTeacherId, setFilterConflictTeacherId] = useState<string | null>(null);
@@ -181,7 +187,11 @@ export default function App() {
           if (json.exists && json.data && isMounted) {
             const { teachers: cloudTeachers, assignments: cloudAssignments, units: cloudUnits, settings: cloudSettings, sheetId: cloudSheetId } = json.data;
             if (Array.isArray(cloudTeachers) && cloudTeachers.length > 0) {
-              setTeachers(cloudTeachers);
+              // Sanitize teachers: ignore dummy IDs or non-teacher names that got misplaced
+              const cleanTeachers = cloudTeachers.filter(t => t && t.name && isValidTeacherName(t.name));
+              if (cleanTeachers.length > 0) {
+                setTeachers(cleanTeachers);
+              }
             }
             if (Array.isArray(cloudAssignments) && cloudAssignments.length > 0) {
               setAssignments(cloudAssignments);
@@ -507,6 +517,17 @@ export default function App() {
     showToast('Data contoh berjaya dimuatkan semula ke dalam sistem.');
   };
 
+  // Buang semua data yang bukan nama guru (ID rujukan, nombor, baris kosong)
+  const handleCleanInvalidData = () => {
+    const valid = teachers.filter(t => t && t.name && isValidTeacherName(t.name));
+    const validIds = new Set(valid.map(t => t.id));
+    const validAssigns = assignments.filter(a => validIds.has(a.teacherId));
+    const removedCount = teachers.length - valid.length;
+    setTeachers(valid);
+    setAssignments(validAssigns);
+    showToast(`Pembersihan selesai! ${removedCount > 0 ? `${removedCount} rekod bukan nama guru telah dibuang.` : 'Semua rekod guru adalah sah.'}`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50/40 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans relative selection:bg-emerald-500 selection:text-white">
       {/* Cheerful & Professional Ambient Background Accents */}
@@ -537,6 +558,7 @@ export default function App() {
         onManualSyncNow={handleManualSyncNow}
         onClearAllData={handleClearAllData}
         onResetToSample={handleResetToSample}
+        onCleanInvalidData={handleCleanInvalidData}
       />
 
       {/* Toast Notification Banner */}
@@ -604,6 +626,10 @@ export default function App() {
               setFilterConflictTeacherId(teacherId);
             }}
             onOpenImport={() => setIsImportModalOpen(true)}
+            onPrintAppointmentLetter={teacher => {
+              setTeacherForLetter(teacher);
+              setIsAppointmentLetterOpen(true);
+            }}
             filterConflictTeacherId={filterConflictTeacherId}
             onClearConflictFilter={() => setFilterConflictTeacherId(null)}
           />
@@ -635,6 +661,10 @@ export default function App() {
             onEditTeacher={teacher => {
               setTeacherToEdit(teacher);
               setIsEditTeacherModalOpen(true);
+            }}
+            onPrintAppointmentLetter={teacher => {
+              setTeacherForLetter(teacher);
+              setIsAppointmentLetterOpen(true);
             }}
           />
         )}
@@ -745,6 +775,21 @@ export default function App() {
         units={units}
         assignments={assignments}
         settings={settings}
+      />
+
+      {/* 4b. Surat Pelantikan Guru Modal */}
+      <AppointmentLetterModal
+        isOpen={isAppointmentLetterOpen}
+        onClose={() => {
+          setIsAppointmentLetterOpen(false);
+          setTeacherForLetter(null);
+        }}
+        teacher={teacherForLetter}
+        allTeachers={teachers}
+        units={units}
+        assignments={assignments}
+        settings={settings}
+        onSelectTeacher={t => setTeacherForLetter(t)}
       />
 
       {/* 5. Add / Edit Teacher Modal */}

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Teacher } from '../types/koku';
-import { parseTeacherImportFile } from '../utils/kokuHelpers';
+import { parseTeacherImportFile, isValidTeacherName, formatTeacherGrade } from '../utils/kokuHelpers';
 
 interface ExcelImportModalProps {
   isOpen: boolean;
@@ -48,16 +48,18 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
           return;
         }
 
-        const validTeachers: Teacher[] = rawTeachers.map((t, idx) => ({
-          id: t.id || `imp-${Date.now()}-${idx}`,
-          name: t.name || 'Guru Baharu',
-          staffId: t.staffId || `G${1000 + idx}`,
-          gender: t.gender || 'L',
-          session: t.session || 'Pagi',
-          grade: t.grade || 'DG41',
-          phone: t.phone || '',
-          email: t.email || '',
-        }));
+        const validTeachers: Teacher[] = rawTeachers
+          .filter(t => t && t.name && isValidTeacherName(t.name))
+          .map((t, idx) => ({
+            id: t.id || `imp-${Date.now()}-${idx}`,
+            name: t.name!.trim(),
+            staffId: t.staffId || `G${1000 + idx}`,
+            gender: t.gender || 'L',
+            session: t.session || 'Pagi',
+            grade: formatTeacherGrade(t.grade),
+            phone: t.phone || '',
+            email: t.email || '',
+          }));
 
         setParsedTeachers(validTeachers);
       } catch (err: unknown) {

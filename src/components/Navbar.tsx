@@ -40,6 +40,7 @@ interface NavbarProps {
   onManualSyncNow?: () => void;
   onClearAllData?: () => void;
   onResetToSample?: () => void;
+  onCleanInvalidData?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -62,6 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onManualSyncNow,
   onClearAllData,
   onResetToSample,
+  onCleanInvalidData,
 }) => {
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
   const [tempSettings, setTempSettings] = React.useState(settings);
@@ -687,6 +689,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                   4. Tetapan Data
                 </label>
                 <div className="flex flex-col sm:flex-row gap-2">
+                  {onCleanInvalidData && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSettingsModal(false);
+                        onCleanInvalidData();
+                      }}
+                      className="px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 rounded-xl border border-amber-200 dark:border-amber-900 transition-colors cursor-pointer text-center"
+                      title="Singkirkan baris kosong, kod rujukan sistem atau data yang bukan nama guru sebenar"
+                    >
+                      🧹 Bersihkan Data Bukan Guru
+                    </button>
+                  )}
                   {onClearAllData && (
                     <button
                       type="button"

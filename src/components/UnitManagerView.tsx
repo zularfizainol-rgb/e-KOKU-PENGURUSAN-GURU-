@@ -16,7 +16,8 @@ import {
   Check,
   Sparkles,
   LayoutGrid,
-  Search
+  Search,
+  FileCheck
 } from 'lucide-react';
 import { 
   KokuUnit, 
@@ -27,7 +28,7 @@ import {
   UnitCategory, 
   ConflictIssue 
 } from '../types/koku';
-import { getRoleColorBadge, getCategoryBadge, sortTeachersBySessionAndAlphabet } from '../utils/kokuHelpers';
+import { getRoleColorBadge, getCategoryBadge, sortTeachersBySessionAndAlphabet, isValidTeacherName } from '../utils/kokuHelpers';
 
 interface UnitManagerViewProps {
   category: UnitCategory;
@@ -44,6 +45,7 @@ interface UnitManagerViewProps {
   onEditUnit?: (unit: KokuUnit) => void;
   onDeleteUnit?: (unitId: string) => void;
   onEditTeacher?: (teacher: Teacher) => void;
+  onPrintAppointmentLetter?: (teacher: Teacher) => void;
 }
 
 export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
@@ -61,6 +63,7 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
   onEditUnit,
   onDeleteUnit,
   onEditTeacher,
+  onPrintAppointmentLetter,
 }) => {
   const categoryUnits = useMemo(() => {
     return units
@@ -107,9 +110,10 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
 
   const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, t])), [teachers]);
   
-  // Sorted list of all teachers: Sesi (Pagi then Petang) & Alphabet (A-Z)
+  // Sorted list of all valid teachers: Sesi (Pagi then Petang) & Alphabet (A-Z)
   const sortedTeachers = useMemo(() => {
-    return sortTeachersBySessionAndAlphabet(teachers);
+    const valid = teachers.filter(t => t && t.name && isValidTeacherName(t.name));
+    return sortTeachersBySessionAndAlphabet(valid);
   }, [teachers]);
 
   const conflictMap = useMemo(() => {
@@ -843,9 +847,20 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                           )}
                         </td>
 
-                        {/* Tindakan: Edit Maklumat Guru & Gugur daripada Unit */}
+                        {/* Tindakan: Surat Pelantikan, Edit Maklumat Guru & Gugur daripada Unit */}
                         <td className="py-4 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
+                            {onPrintAppointmentLetter && (
+                              <button
+                                type="button"
+                                onClick={() => onPrintAppointmentLetter(teacher)}
+                                className="px-2.5 py-1.5 rounded-xl text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 font-bold text-xs inline-flex items-center gap-1 transition-colors border border-emerald-200 dark:border-emerald-900 cursor-pointer shadow-2xs"
+                                title={`Jana & Cetak Surat Pelantikan untuk Cikgu ${teacher.name}`}
+                              >
+                                <FileCheck className="w-3.5 h-3.5" />
+                                <span>Surat</span>
+                              </button>
+                            )}
                             {onEditTeacher && (
                               <button
                                 type="button"

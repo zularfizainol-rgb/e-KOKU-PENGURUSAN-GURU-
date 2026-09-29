@@ -2,6 +2,63 @@ import * as XLSX from 'xlsx';
 import { Teacher, KokuUnit, UnitAssignment, ConflictIssue, UnitCategory, SessionType, RoleType } from '../types/koku';
 
 /**
+ * Pemetaan Gred Perkhidmatan Perguruan KPM:
+ * SSM (Sistem Saraan Malaysia / Gred Lama) -> SSPA (Sistem Saraan Perkhidmatan Awam / Gred Baharu)
+ * Format: DG41/DG9, DG44/DG10, DG48/DG12, DG52/DG13, DG54/DG14
+ */
+export interface ServiceGradeOption {
+  value: string;
+  ssm: string;
+  sspa: string;
+  label: string;
+  description: string;
+}
+
+export const TEACHER_SERVICE_GRADES: ServiceGradeOption[] = [
+  { value: 'DG41/DG9', ssm: 'DG41', sspa: 'DG9', label: 'DG41/DG9', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Gred Permulaan)' },
+  { value: 'DG42/DG10', ssm: 'DG42', sspa: 'DG10', label: 'DG42/DG10', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Kenaikan Pangkat Ex-PPPLD)' },
+  { value: 'DG44/DG10', ssm: 'DG44', sspa: 'DG10', label: 'DG44/DG10', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Time-Based)' },
+  { value: 'DG48/DG12', ssm: 'DG48', sspa: 'DG12', label: 'DG48/DG12', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Kanan)' },
+  { value: 'DG52/DG13', ssm: 'DG52', sspa: 'DG13', label: 'DG52/DG13', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Kanan Lanjutan)' },
+  { value: 'DG54/DG14', ssm: 'DG54', sspa: 'DG14', label: 'DG54/DG14', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Gred Utama)' },
+  { value: 'DG34/DG7', ssm: 'DG34', sspa: 'DG7', label: 'DG34/DG7', description: 'Pegawai Perkhidmatan Pendidikan Lepasan Diploma' },
+  { value: 'DG32/DG6', ssm: 'DG32', sspa: 'DG6', label: 'DG32/DG6', description: 'Pegawai Perkhidmatan Pendidikan Lepasan Diploma' },
+  { value: 'DG29/DG6', ssm: 'DG29', sspa: 'DG6', label: 'DG29/DG6', description: 'Pegawai Perkhidmatan Pendidikan Lepasan Diploma (Permulaan)' },
+  { value: 'DC41/DC9', ssm: 'DC41', sspa: 'DC9', label: 'DC41/DC9', description: 'Guru Kontrak / COS Siswazah' },
+];
+
+/**
+ * Format paparan gred guru secara automatik ke format Gred Lama / Gred SSPA Baharu
+ * Contoh: jika data simpan 'DG41', paparkan 'DG41/DG9'
+ */
+export function formatTeacherGrade(grade?: string): string {
+  if (!grade) return 'DG41/DG9';
+  const trimmed = grade.trim();
+  
+  // Normalisasikan jika sebelum ini disimpan dengan spasi cth: 'DG41 / DG1-1' atau 'DG41 / DG9'
+  const normalized = trimmed.replace(/\s*\/\s*/, '/').toUpperCase();
+
+  // Semak jika sudah sepadan dengan mana-mana value atau label
+  const directMatch = TEACHER_SERVICE_GRADES.find(g => g.value.toUpperCase() === normalized || g.label.toUpperCase() === normalized);
+  if (directMatch) return directMatch.label;
+
+  // Jika format lama 'DG41 / DG1-1', ambil bahagian SSM sebelum '/'
+  const ssmPart = trimmed.split('/')[0].trim();
+  const matchedFromPart = TEACHER_SERVICE_GRADES.find(g => g.ssm.toLowerCase() === ssmPart.toLowerCase());
+  if (matchedFromPart) return matchedFromPart.label;
+
+  // Cari padanan mengikut SSM terus
+  const matched = TEACHER_SERVICE_GRADES.find(g => g.ssm.toLowerCase() === trimmed.toLowerCase());
+  if (matched) return matched.label;
+
+  // Cari jika pengguna masukkan kod SSPA (cth: DG9, DG10, DG12, DG13, DG14)
+  const matchedSspa = TEACHER_SERVICE_GRADES.find(g => g.sspa.toLowerCase() === trimmed.toLowerCase());
+  if (matchedSspa) return matchedSspa.label;
+
+  return trimmed;
+}
+
+/**
  * Susun senarai guru mengikut SESI (Pagi dahulu, kemudian Petang) dan ALPHABET (A ke Z)
  */
 export function sortTeachersBySessionAndAlphabet(teachers: Teacher[]): Teacher[] {
@@ -205,7 +262,7 @@ export function exportMatrixToExcel(
       'Nama Guru': teacher.name,
       'No. Fail / KP': teacher.staffId,
       'Jantina': teacher.gender,
-      'Gred': teacher.grade || 'DG41',
+      'Gred (Lama / SSPA)': formatTeacherGrade(teacher.grade),
       'Sesi Bertugas': teacher.session,
       'Pasukan Badan Beruniform': uniform ? `${unitMap.get(uniform.unitId)?.name} (${uniform.role})` : 'Tiada',
       'Kelab & Persatuan': club ? `${unitMap.get(club.unitId)?.name} (${club.role})` : 'Tiada',
@@ -298,6 +355,35 @@ export function exportMatrixToExcel(
   XLSX.writeFile(wb, fileName);
 }
 
+/**
+ * Memeriksa sama ada teks nama adalah nama guru yang sah atau teks sistem/tajuk jadual/nombor
+ */
+export function isValidTeacherName(name: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (trimmed.length < 2) return false;
+
+  // Singkirkan jika hanya nombor (contohnya index 1, 2, 3...)
+  if (/^\d+$/.test(trimmed)) return false;
+
+  // Singkirkan jika corak ID sistem yang tersilap masuk
+  if (/^imported-\d+/i.test(trimmed) || /^t-\d+/i.test(trimmed) || /^imp-\d+/i.test(trimmed) || /^t-sheet/i.test(trimmed)) {
+    return false;
+  }
+
+  // Singkirkan jika tajuk lajur yang termasuk sebagai baris guru
+  const lower = trimmed.toLowerCase();
+  const invalidKeywords = [
+    'nama guru', 'nama penuh guru', 'nama', 'guru', 'bil', 'no', 'jawatan',
+    'sesi', 'jantina', 'gred', 'no telefon', 'emel', 'catatan', 'senarai guru',
+    'agihan kokurikulum', 'unit beruniform', 'kelab persatuan', 'sukan permainan',
+    'rumah sukan', 'jumlah', 'tamat'
+  ];
+  if (invalidKeywords.includes(lower)) return false;
+
+  return true;
+}
+
 export function parseTeacherImportFile(fileData: ArrayBuffer): { teachers: Partial<Teacher>[]; errors: string[] } {
   const wb = XLSX.read(fileData, { type: 'array' });
   const firstSheetName = wb.SheetNames[0];
@@ -328,8 +414,8 @@ export function parseTeacherImportFile(fileData: ArrayBuffer): { teachers: Parti
     const phone = findValue(/telefon|tel|phone|hp|bimbit/i);
     const email = findValue(/emel|email|e-mel/i);
 
-    if (!name) {
-      return; // Skip empty row
+    if (!name || !isValidTeacherName(name)) {
+      return; // Skip empty row or invalid row header
     }
 
     // Determine session

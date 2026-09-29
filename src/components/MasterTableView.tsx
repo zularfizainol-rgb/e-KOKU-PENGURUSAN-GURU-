@@ -12,10 +12,11 @@ import {
   Sunset,
   Plus,
   Check,
-  X
+  X,
+  FileCheck
 } from 'lucide-react';
 import { Teacher, KokuUnit, UnitAssignment, ConflictIssue, RoleType, SessionType, UnitCategory } from '../types/koku';
-import { getRoleColorBadge, getCategoryBadge, sortTeachersBySessionAndAlphabet } from '../utils/kokuHelpers';
+import { getRoleColorBadge, getCategoryBadge, sortTeachersBySessionAndAlphabet, isValidTeacherName, formatTeacherGrade } from '../utils/kokuHelpers';
 
 interface MasterTableViewProps {
   teachers: Teacher[];
@@ -23,12 +24,13 @@ interface MasterTableViewProps {
   assignments: UnitAssignment[];
   conflicts: ConflictIssue[];
   onAddTeacher: () => void;
-  onEditTeacher: (teacher: Teacher) => void;
+  onEditTeacher: (teacher) => void;
   onDeleteTeacher: (teacherId: string) => void;
   onAssignTeacherToUnit: (teacherId: string, unitId: string, role: RoleType, session: SessionType) => void;
   onRemoveAssignment: (assignmentId: string) => void;
   onSelectTeacherConflict: (teacherId: string) => void;
   onOpenImport?: () => void;
+  onPrintAppointmentLetter?: (teacher: Teacher) => void;
   filterConflictTeacherId?: string | null;
   onClearConflictFilter?: () => void;
 }
@@ -79,6 +81,7 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
   onRemoveAssignment,
   onSelectTeacherConflict,
   onOpenImport,
+  onPrintAppointmentLetter,
   filterConflictTeacherId,
   onClearConflictFilter,
 }) => {
@@ -109,6 +112,11 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
 
   const filteredTeachers = useMemo(() => {
     const list = teachers.filter(teacher => {
+      // Pastikan rekod adalah nama guru yang sah
+      if (!teacher || !teacher.name || !isValidTeacherName(teacher.name)) {
+        return false;
+      }
+
       // Tapisan konflik khusus jika dipilih
       if (filterConflictTeacherId && teacher.id !== filterConflictTeacherId) {
         return false;
@@ -446,13 +454,23 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
                         <div className="font-extrabold text-slate-900 dark:text-slate-100 text-sm hover:text-emerald-600 transition-colors">
                           {teacher.name}
                         </div>
-                        <div className="flex items-center gap-2 text-xs mt-0.5">
+                        <div className="flex items-center flex-wrap gap-2 text-xs mt-1">
                           <span className={`inline-flex items-center gap-1 font-semibold ${
                             teacher.gender === 'L' ? 'text-blue-600 dark:text-blue-400' : 'text-pink-600 dark:text-pink-400'
                           }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${teacher.gender === 'L' ? 'bg-blue-500' : 'bg-pink-500'}`} />
-                            {teacher.gender === 'L' ? 'Guru Lelaki' : 'Guru Perempuan'}
+                            {teacher.gender === 'L' ? 'Lelaki' : 'Perempuan'}
                           </span>
+                          {teacher.grade && (
+                            <span className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold text-[10px] border border-emerald-200 dark:border-emerald-800 tracking-tight">
+                              {formatTeacherGrade(teacher.grade)}
+                            </span>
+                          )}
+                          {teacher.staffId && !teacher.staffId.startsWith('G1') && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              IC: {teacher.staffId}
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -615,6 +633,16 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
                       {/* Tindakan Guru */}
                       <td className="py-4 px-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
+                          {onPrintAppointmentLetter && (
+                            <button
+                              type="button"
+                              onClick={() => onPrintAppointmentLetter(teacher)}
+                              className="p-1.5 text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 rounded-lg transition-colors cursor-pointer border border-emerald-200 dark:border-emerald-800"
+                              title={`Jana & Cetak Surat Pelantikan untuk Cikgu ${teacher.name}`}
+                            >
+                              <FileCheck className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleOpenTeacherUnitsManager(teacher)}

@@ -10,7 +10,7 @@ import {
   Sunset
 } from 'lucide-react';
 import { Teacher, KokuUnit, UnitAssignment, SchoolSettings, RoleType, SessionType, UnitCategory } from '../types/koku';
-import { sortTeachersBySessionAndAlphabet } from '../utils/kokuHelpers';
+import { sortTeachersBySessionAndAlphabet, formatTeacherGrade } from '../utils/kokuHelpers';
 import { OFFICIAL_TS25_LOGO_SVG } from '../utils/logoHelpers';
 
 const CATEGORY_CONFIG: {
@@ -261,8 +261,10 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                           <td className="border border-slate-300 py-1.5 px-1 text-center font-bold">{idx + 1}</td>
                           <td className="border border-slate-300 py-1.5 px-2">
                             <div className="font-bold text-slate-900">{t.name}</div>
-                            <div className="text-[9px] text-slate-500">
-                              {t.gender === 'L' ? 'Lelaki' : 'Perempuan'}
+                            <div className="text-[9px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                              <span>{t.gender === 'L' ? 'Lelaki' : 'Perempuan'}</span>
+                              <span>•</span>
+                              <span className="font-semibold text-emerald-700">{formatTeacherGrade(t.grade)}</span>
                             </div>
                           </td>
                           <td className="border border-slate-300 py-1.5 px-1 text-center font-semibold">{t.session}</td>

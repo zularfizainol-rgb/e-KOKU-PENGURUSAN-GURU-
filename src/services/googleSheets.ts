@@ -1,5 +1,6 @@
 import { Teacher, UnitAssignment, KokuUnit, SchoolSettings, RoleType, SessionType, UnitCategory } from '../types/koku';
 import { getAccessToken, clearAccessToken } from './auth';
+import { isValidTeacherName } from '../utils/kokuHelpers';
 import * as XLSX from 'xlsx';
 
 export interface SheetImportResult {
@@ -556,9 +557,19 @@ export function parseRawSheetData(
   // Parse Teachers
   const parsedTeachers: Teacher[] = [];
   if (rawTeachers.length > 1) {
+    const headerRow = rawTeachers[0].map(h => String(h || '').toLowerCase().trim());
+    
+    // Find index of headers dynamically
+    const nameIdx = headerRow.findIndex(h => /nama|guru|teacher|name/i.test(h));
+    const staffIdIdx = headerRow.findIndex(h => /kp|ic|fail|kad pengenalan|id/i.test(h));
+    const genderIdx = headerRow.findIndex(h => /jantina|gender|sex/i.test(h));
+    const sessionIdx = headerRow.findIndex(h => /sesi|session|waktu/i.test(h));
+    const gradeIdx = headerRow.findIndex(h => /gred|grade|jawatan/i.test(h));
+    const phoneIdx = headerRow.findIndex(h => /telefon|tel|phone|hp|bimbit/i.test(h));
+    const emailIdx = headerRow.findIndex(h => /emel|email|e-mel/i.test(h));
+
     const rows = rawTeachers.slice(1);
     rows.forEach((r, idx) => {
-      // Determine columns intelligently based on presence of t- ID prefix or column values
       const hasId = Boolean(r[0] && r[0].trim().startsWith('t-'));
       const id = hasId ? r[0].trim() : `t-sheet-${idx + 1}`;
       
@@ -570,8 +581,17 @@ export function parseRawSheetData(
       let phone = '';
       let email = '';
 
-      if (hasId) {
-        // Format: ID (0), No (1), Nama (2), No KP (3), Jantina (4), Sesi (5), Gred (6), Tel (7), Emel (8)
+      if (nameIdx !== -1) {
+        // Use dynamically identified header index
+        name = r[nameIdx] || '';
+        staffId = staffIdIdx !== -1 ? (r[staffIdIdx] || '') : '';
+        genderStr = genderIdx !== -1 ? (r[genderIdx] || '') : '';
+        sessionStr = sessionIdx !== -1 ? (r[sessionIdx] || '') : '';
+        grade = gradeIdx !== -1 ? (r[gradeIdx] || 'DG41') : 'DG41';
+        phone = phoneIdx !== -1 ? (r[phoneIdx] || '') : '';
+        email = emailIdx !== -1 ? (r[emailIdx] || '') : '';
+      } else if (hasId) {
+        // Fallback standard format: ID (0), No (1), Nama (2), No KP (3), Jantina (4), Sesi (5), Gred (6), Tel (7), Emel (8)
         name = r[2] || r[1] || '';
         staffId = r[3] || '';
         genderStr = r[4] || '';
@@ -580,9 +600,6 @@ export function parseRawSheetData(
         phone = r[7] || '';
         email = r[8] || '';
       } else {
-        // Format without ID:
-        // Could be: No (0), Nama (1), No KP (2), Jantina/Sesi (3), ...
-        // Check if r[0] is numeric (like index 1, 2, 3...) and r[1] is a teacher name
         const isFirstColNumber = /^\d+$/.test((r[0] || '').trim());
         if (isFirstColNumber && r[1] && isNaN(Number(r[1].trim()))) {
           name = r[1];
@@ -614,7 +631,7 @@ export function parseRawSheetData(
       // Format session
       const session: SessionType = /petang|afternoon|pm/i.test(sessionStr) ? 'Petang' : 'Pagi';
 
-      if (name.trim()) {
+      if (name.trim() && isValidTeacherName(name)) {
         parsedTeachers.push({
           id,
           name: name.trim(),
@@ -691,13 +708,19 @@ export function parseRawSheetData(
   // Parse Assignments
   const parsedAssignments: UnitAssignment[] = [];
   if (rawAssignments.length > 1) {
+    const aHeaders = rawAssignments[0].map(h => String(h || '').toLowerCase().trim());
+    const tNameCol = aHeaders.findIndex(h => /nama.*guru|guru|teacher/i.test(h));
+    const uNameCol = aHeaders.findIndex(h => /nama.*unit|unit/i.test(h));
+    const roleCol = aHeaders.findIndex(h => /jawatan|role/i.test(h));
+    const sessCol = aHeaders.findIndex(h => /sesi.*unit|sesi/i.test(h));
+
     const rows = rawAssignments.slice(1);
     rows.forEach((r, idx) => {
       const assignId = r[0] && r[0].startsWith('a-') ? r[0] : `a-sheet-${Date.now()}-${idx}`;
-      const teacherName = (r[2] || r[1] || '').trim();
-      const unitName = (r[5] || r[3] || '').trim();
-      const roleRaw = (r[7] || r[5] || 'AJK').trim();
-      const sessionRaw = (r[8] || r[6] || 'Pagi').trim();
+      const teacherName = (tNameCol !== -1 ? r[tNameCol] : (r[2] || r[1] || '')).trim();
+      const unitName = (uNameCol !== -1 ? r[uNameCol] : (r[5] || r[3] || '')).trim();
+      const roleRaw = (roleCol !== -1 ? r[roleCol] : (r[7] || r[5] || 'AJK')).trim();
+      const sessionRaw = (sessCol !== -1 ? r[sessCol] : (r[8] || r[6] || 'Pagi')).trim();
 
       const matchedTeacher = teacherByName.get(teacherName.toLowerCase());
       const matchedUnit = unitByName.get(unitName.toLowerCase());
