@@ -2,10 +2,42 @@ export type UnitCategory = 'BERUNIFORM' | 'KELAB' | 'SUKAN' | 'RUMAH_SUKAN' | 'P
 
 export type SessionType = 'Pagi' | 'Petang';
 
+export type CoordinatorSessionType = 'Pagi' | 'Petang' | 'Kedua-dua Sesi';
+
+export type ExecutiveRoleType = 
+  | 'Setiausaha Kokurikulum'
+  | 'Naib Setiausaha Kokurikulum'
+  | 'Setiausaha Sukan'
+  | 'Naib Setiausaha Sukan';
+
+export interface ExecutiveLeader {
+  id: string;
+  role: ExecutiveRoleType | string;
+  teacherId: string;
+  session: CoordinatorSessionType;
+  appointedAt?: string;
+}
+
+export interface CategoryCoordinator {
+  id: string;
+  category: UnitCategory; // Major unit category: 'BERUNIFORM' | 'KELAB' | 'SUKAN' | 'RUMAH_SUKAN' | 'PEMBANGUNAN'
+  teacherId: string;
+  session: CoordinatorSessionType; // Pilihan Sesi: 'Pagi' | 'Petang' | 'Kedua-dua Sesi'
+  roleTitle?: string; // Default: 'Penyelaras', or 'Penolong Penyelaras', or custom
+  appointedAt?: string;
+}
+
 export type RoleType = 
   | 'Ketua Guru Penasihat'
+  | 'Penyelaras'
   | 'Setiausaha'
-  | 'AJK';
+  | 'Jurulatih'
+  | 'Pengurus'
+  | 'Ketua Panitia'
+  | 'Penolong Ketua Guru Penasihat'
+  | 'Bendahari'
+  | 'AJK'
+  | string;
 
 export interface Teacher {
   id: string;
@@ -29,6 +61,7 @@ export interface KokuUnit {
   description?: string;
   targetMorning?: number;
   targetAfternoon?: number;
+  coordinatorId?: string; // ID of Penyelaras Unit
 }
 
 export interface UnitAssignment {
@@ -56,6 +89,8 @@ export interface SchoolSettings {
   gpkKokuName: string;
   state: string;
   district: string;
+  schoolAddress?: string;
+  schoolState?: string;
   schoolLogo?: string;
   ts25Logo?: string;
   schoolLogoUrl?: string;

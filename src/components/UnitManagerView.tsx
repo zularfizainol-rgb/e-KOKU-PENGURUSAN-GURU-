@@ -8,16 +8,18 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   Plus, 
-  Info,
-  Edit,
-  Edit3,
-  FolderPlus,
-  X,
-  Check,
-  Sparkles,
-  LayoutGrid,
-  Search,
-  FileCheck
+  Info, 
+  Edit, 
+  Edit3, 
+  FolderPlus, 
+  X, 
+  Check, 
+  Sparkles, 
+  LayoutGrid, 
+  Search, 
+  FileCheck,
+  Award,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   KokuUnit, 
@@ -26,9 +28,18 @@ import {
   RoleType, 
   SessionType, 
   UnitCategory, 
-  ConflictIssue 
+  ConflictIssue,
+  CategoryCoordinator,
+  CoordinatorSessionType
 } from '../types/koku';
-import { getRoleColorBadge, getCategoryBadge, sortTeachersBySessionAndAlphabet, isValidTeacherName } from '../utils/kokuHelpers';
+import { 
+  getRoleColorBadge, 
+  getCategoryBadge, 
+  sortTeachersBySessionAndAlphabet, 
+  isValidTeacherName,
+  getCoordinatorSessionBadge,
+  getCategoryTitle
+} from '../utils/kokuHelpers';
 
 interface UnitManagerViewProps {
   category: UnitCategory;
@@ -36,6 +47,11 @@ interface UnitManagerViewProps {
   teachers: Teacher[];
   assignments: UnitAssignment[];
   conflicts: ConflictIssue[];
+  categoryCoordinators?: CategoryCoordinator[];
+  onAddCategoryCoordinator?: (category: UnitCategory, teacherId: string, session: CoordinatorSessionType, roleTitle?: string) => void;
+  onRemoveCategoryCoordinator?: (coordinatorId: string) => void;
+  customRoles?: string[];
+  onAddCustomRole?: (role: string) => void;
   onAssignTeacher: (teacherId: string, unitId: string, role: RoleType, session: SessionType) => void;
   onUpdateRole: (assignmentId: string, newRole: RoleType) => void;
   onUpdateSession: (assignmentId: string, newSession: SessionType) => void;
@@ -54,6 +70,11 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
   teachers,
   assignments,
   conflicts,
+  categoryCoordinators = [],
+  onAddCategoryCoordinator,
+  onRemoveCategoryCoordinator,
+  customRoles: initialCustomRoles = [],
+  onAddCustomRole,
   onAssignTeacher,
   onUpdateRole,
   onUpdateSession,
@@ -150,8 +171,81 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
   const afternoonCount = activeAssignments.filter(a => a.session === 'Petang').length;
   const totalCount = activeAssignments.length;
 
-  // STRICT 3 ROLES ONLY: Ketua Guru Penasihat, Setiausaha, AJK
-  const rolesAvailable: RoleType[] = ['Ketua Guru Penasihat', 'Setiausaha', 'AJK'];
+  // Custom roles state initialized with initialCustomRoles
+  const [customRoles, setCustomRoles] = useState<string[]>(initialCustomRoles);
+  const [isCustomRoleSelected, setIsCustomRoleSelected] = useState(false);
+  const [newCustomRoleName, setNewCustomRoleName] = useState('');
+
+  // Synchronize when initialCustomRoles changes
+  React.useEffect(() => {
+    if (initialCustomRoles && initialCustomRoles.length > 0) {
+      setCustomRoles(prev => Array.from(new Set([...prev, ...initialCustomRoles])));
+    }
+  }, [initialCustomRoles]);
+
+  // Row custom role modal state
+  const [rowCustomRoleModal, setRowCustomRoleModal] = useState<{
+    assignmentId: string;
+    teacherName: string;
+  } | null>(null);
+  const [rowCustomRoleInput, setRowCustomRoleInput] = useState('');
+
+  // Available roles: Standard roles + existing custom roles in system + user-added custom roles
+  const rolesAvailable: string[] = useMemo(() => {
+    const list = [
+      'Ketua Guru Penasihat',
+      'Penyelaras',
+      'Setiausaha',
+      'Jurulatih',
+      'Pengurus',
+      'Ketua Panitia',
+      'Penolong Ketua Guru Penasihat',
+      'Bendahari',
+      'AJK',
+    ];
+    // Collect roles currently used in assignments
+    assignments.forEach(a => {
+      if (a.role && !list.includes(a.role) && a.role !== '__CUSTOM__' && a.role !== '__ADD_NEW__') {
+        list.push(a.role);
+      }
+    });
+    // Collect user created custom roles
+    customRoles.forEach(r => {
+      if (r && !list.includes(r)) list.push(r);
+    });
+    return list;
+  }, [assignments, customRoles]);
+
+  // Penyelaras Kategori Unit Besar (Unit Beruniform, Kelab, Sukan, Rumah Sukan)
+  const currentCategoryCoords = useMemo(() => {
+    return categoryCoordinators.filter(c => c.category === category);
+  }, [categoryCoordinators, category]);
+
+  // Borang Lantik Penyelaras Baharu Bagi Unit Besar Ini
+  const [selectedCoordTeacherId, setSelectedCoordTeacherId] = useState<string>('');
+  const [selectedCoordSession, setSelectedCoordSession] = useState<CoordinatorSessionType>('Pagi');
+  const [selectedCoordRoleTitle, setSelectedCoordRoleTitle] = useState<string>('Penyelaras');
+
+  // Bila guru dipilih, tetapkan sesi lalai mengikut sesi hakiki guru berkenaan
+  const handleCoordTeacherChange = (teacherId: string) => {
+    setSelectedCoordTeacherId(teacherId);
+    const teacher = teacherMap.get(teacherId);
+    if (teacher) {
+      setSelectedCoordSession(teacher.session as CoordinatorSessionType);
+    }
+  };
+
+  const handleAddNewCategoryCoordinator = () => {
+    if (!selectedCoordTeacherId || !onAddCategoryCoordinator) return;
+    onAddCategoryCoordinator(
+      category,
+      selectedCoordTeacherId,
+      selectedCoordSession,
+      selectedCoordRoleTitle.trim() || 'Penyelaras'
+    );
+    setSelectedCoordTeacherId('');
+    setSelectedCoordRoleTitle('Penyelaras');
+  };
 
   // Handle teacher select in dropdown, auto set session to match teacher's hakiki session
   const handleTeacherSelect = (teacherId: string) => {
@@ -166,8 +260,22 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
     e.preventDefault();
     if (!selectedTeacherId || !activeUnit) return;
 
-    onAssignTeacher(selectedTeacherId, activeUnit.id, selectedRole, selectedSession);
+    let finalRole = selectedRole;
+    if (isCustomRoleSelected) {
+      const trimmed = newCustomRoleName.trim();
+      if (!trimmed) return;
+      finalRole = trimmed;
+      if (!customRoles.includes(trimmed)) {
+        setCustomRoles(prev => [...prev, trimmed]);
+      }
+      onAddCustomRole?.(trimmed);
+    }
+
+    onAssignTeacher(selectedTeacherId, activeUnit.id, finalRole, selectedSession);
     setSelectedTeacherId('');
+    setIsCustomRoleSelected(false);
+    setNewCustomRoleName('');
+    setSelectedRole('AJK');
   };
 
   // Open Add Unit Modal for any category
@@ -278,6 +386,167 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* RUANG PENYELARAS UNIT BESAR (Unit Beruniform, Kelab, Sukan, Rumah Sukan) */}
+      <div className="bg-gradient-to-r from-purple-50 via-indigo-50/80 to-fuchsia-50 dark:from-slate-900 dark:via-purple-950/40 dark:to-slate-900 p-5 sm:p-6 rounded-3xl border-2 border-purple-200/90 dark:border-purple-800/80 shadow-xs space-y-4">
+        {/* Header Ruang Penyelaras Unit Besar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-purple-200/70 dark:border-purple-800/50">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-md shrink-0 ring-2 ring-purple-300 dark:ring-purple-600">
+              <Award className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-black text-purple-950 dark:text-purple-200 uppercase tracking-wide">
+                  Ruang Penyelaras {getCategoryTitle()}
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-200/90 dark:bg-purple-900/60 text-purple-900 dark:text-purple-200">
+                  {currentCategoryCoords.length} Penyelaras Dilantik
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Lantik guru Penyelaras bagi unit yang besar ini mengikut pilihan sesi (Pagi, Petang, atau Kedua-dua Sesi). Anda boleh menambah lebih daripada seorang Penyelaras jika ramai penyelaras dilantik pada masa hadapan.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Senarai Penyelaras Yang Telah Dilantik untuk Unit Besar Ini */}
+        {currentCategoryCoords.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {currentCategoryCoords.map(coord => {
+              const teacher = teacherMap.get(coord.teacherId);
+              const sessionBadge = getCoordinatorSessionBadge(coord.session);
+              return (
+                <div
+                  key={coord.id}
+                  className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/95 dark:bg-slate-800/95 border-2 border-purple-200 dark:border-purple-800/80 shadow-xs hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-xs shrink-0 ring-2 ring-purple-300 dark:ring-purple-600">
+                      {teacher ? teacher.name.slice(0, 2).toUpperCase() : '??'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-black text-slate-900 dark:text-white text-xs sm:text-sm truncate" title={teacher?.name}>
+                        {teacher?.name || 'Guru Tidak Ditemui'}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black border ${sessionBadge.bg} ${sessionBadge.text}`}>
+                          {sessionBadge.icon} {sessionBadge.label}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300">
+                          {coord.roleTitle || 'Penyelaras'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                        <span>Sesi Hakiki: <b>{teacher?.session || '-'}</b></span>
+                        {teacher?.phone && <span>• Tel: <b>{teacher.phone}</b></span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {onRemoveCategoryCoordinator && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveCategoryCoordinator(coord.id)}
+                      className="text-xs font-bold text-rose-600 hover:text-rose-800 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 px-2.5 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 cursor-pointer shrink-0 transition-colors"
+                      title={`Gugurkan Cikgu ${teacher?.name} daripada jawatan Penyelaras ${getCategoryTitle()}`}
+                    >
+                      Gugurkan
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-purple-200/80 dark:border-purple-800/50 text-xs text-purple-900 dark:text-purple-200 flex items-center gap-2.5 font-medium">
+            <Info className="w-4 h-4 text-purple-600 shrink-0" />
+            <span>Belum ada guru Penyelaras dilantik bagi unit yang besar ({getCategoryTitle()}) ini. Gunakan borang di bawah untuk melantik Penyelaras Sesi Pagi, Petang, atau Kedua-dua Sesi.</span>
+          </div>
+        )}
+
+        {/* Borang Tambah Penyelaras Baharu (Boleh Tambah Ramai Penyelaras) */}
+        {onAddCategoryCoordinator && (
+          <div className="bg-white/90 dark:bg-slate-800/90 p-4 rounded-2xl border border-dashed border-purple-300 dark:border-purple-700/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-purple-950 dark:text-purple-200 uppercase tracking-wide flex items-center gap-1.5">
+                <span>➕</span> Lantik Penyelaras Baharu Bagi {getCategoryTitle()}
+              </span>
+              <span className="text-[11px] font-medium text-slate-500">
+                Boleh lantik lebih daripada 1 orang penyelaras
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              {/* Pilih Guru */}
+              <div className="sm:col-span-6 lg:col-span-5">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Pilih Nama Guru Sekolah *
+                </label>
+                <select
+                  value={selectedCoordTeacherId}
+                  onChange={e => handleCoordTeacherChange(e.target.value)}
+                  className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">-- Pilih Guru Sekolah (Sesi & Abjad) --</option>
+                  {sortedTeachers.map(t => {
+                    const isCoord = currentCategoryCoords.some(c => c.teacherId === t.id);
+                    return (
+                      <option key={`opt-coord-${t.id}`} value={t.id}>
+                        [{t.session}] {t.name} {isCoord ? '✓ (Sudah dilantik)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Pilihan Sesi Penyelaras */}
+              <div className="sm:col-span-3 lg:col-span-3">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Pilihan Sesi *
+                </label>
+                <select
+                  value={selectedCoordSession}
+                  onChange={e => setSelectedCoordSession(e.target.value as CoordinatorSessionType)}
+                  className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="Pagi">☀️ Sesi Pagi</option>
+                  <option value="Petang">🌇 Sesi Petang</option>
+                  <option value="Kedua-dua Sesi">✨ Kedua-dua Sesi (Pagi & Petang)</option>
+                </select>
+              </div>
+
+              {/* Gelaran Jawatan */}
+              <div className="sm:col-span-3 lg:col-span-2">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Gelaran Jawatan
+                </label>
+                <input
+                  type="text"
+                  value={selectedCoordRoleTitle}
+                  onChange={e => setSelectedCoordRoleTitle(e.target.value)}
+                  placeholder="Penyelaras"
+                  className="w-full text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Butang Lantik */}
+              <div className="sm:col-span-12 lg:col-span-2 flex items-end">
+                <button
+                  type="button"
+                  disabled={!selectedCoordTeacherId}
+                  onClick={handleAddNewCategoryCoordinator}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-40 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Award className="w-4 h-4" />
+                  <span>+ Lantik Penyelaras</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Paparan Pilihan Sub-Unit Bersaiz Besar & Jelas (Grid Tanpa Perlu Slide) */}
       <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
         {/* Header Seksyen Pemilihan Sub-Unit */}
@@ -337,15 +606,60 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
           </div>
         </div>
 
+        {/* PANDUAN UNIT PEMBANGUNAN & KHAS: DITENTUKAN SENDIRI OLEH GPK KOKURIKULUM */}
+        {category === 'PEMBANGUNAN' && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50/70 to-purple-50 dark:from-purple-950/40 dark:via-indigo-950/30 dark:to-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs text-purple-950 dark:text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <span className="text-2xl shrink-0">🏛️</span>
+              <div>
+                <div className="font-black text-sm flex items-center gap-2">
+                  <span>Unit Pembangunan &amp; Khas Sekolah</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-200 dark:bg-purple-900 text-purple-900 dark:text-purple-200">
+                    Ketetapan GPK Kokurikulum
+                  </span>
+                </div>
+                <p className="text-[11px] text-purple-800/90 dark:text-purple-300/90 mt-0.5 leading-relaxed">
+                  Nama dan senarai unit dalam kategori ini ditentukan sepenuhnya oleh Guru Penolong Kanan (GPK) Kokurikulum mengikut keperluan dan struktur pentadbiran sekolah anda. Sila gunakan butang <b>"+ Tambah Unit"</b> untuk mendaftarkan unit pembangunan sekolah.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={openAddUnitModal}
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs shrink-0 flex items-center gap-1.5 shadow-sm hover:shadow-md cursor-pointer transition-all self-end sm:self-center"
+              title="Tambah unit pembangunan baharu mengikut ketetapan sekolah"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span>+ Tambah Unit Pembangunan</span>
+            </button>
+          </div>
+        )}
+
         {/* Grid Kad-Kad Sub-Unit Bersaiz Besar & Mudah Klik */}
         {categoryUnits.length === 0 ? (
-          <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
-            <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
-              Tiada unit didaftarkan lagi dalam {getCategoryTitle()}.
+          <div className="p-8 sm:p-10 text-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto text-xl font-bold">
+              {category === 'PEMBANGUNAN' ? '🚀' : '📋'}
+            </div>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+              {category === 'PEMBANGUNAN' 
+                ? 'Belum ada unit Pembangunan & Khas didaftarkan.' 
+                : `Tiada unit didaftarkan lagi dalam ${getCategoryTitle()}.`}
             </p>
-            <p className="text-xs text-slate-400 mt-1">
-              Klik butang "+ Tambah Unit" di atas untuk mendaftar unit pertama sekolah anda.
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+              {category === 'PEMBANGUNAN'
+                ? 'Pihak GPK Kokurikulum bebas menentukan nama dan senarai unit pembangunan sekolah. Sila klik butang di bawah untuk mendaftarkan unit pertama anda.'
+                : 'Klik butang "+ Tambah Unit" di atas untuk mendaftar unit pertama sekolah anda.'}
             </p>
+            <button
+              type="button"
+              onClick={openAddUnitModal}
+              className="mt-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <FolderPlus className="w-4 h-4" />
+              <span>+ Tambah Unit {getCategoryTitle()}</span>
+            </button>
           </div>
         ) : filteredCategoryUnits.length === 0 ? (
           <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
@@ -598,7 +912,7 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                 Lantik Guru ke dalam {activeUnit.name}
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                Pilih nama guru dari drop-down, tetapkan jawatan (Ketua Guru Penasihat / Setiausaha / AJK) dan sesi tugas.
+                Pilih nama guru dari drop-down, tetapkan jawatan (Ketua Guru Penasihat, Penyelaras, Jurulatih, Pengurus, Ketua Panitia, Setiausaha, AJK atau jawatan lain) dan sesi tugas.
               </p>
             </div>
           </div>
@@ -616,12 +930,12 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                 required
               >
                 <option value="">-- Pilih Guru Sekolah (Sesi & Abjad) --</option>
-                {sortedTeachers.map(t => {
+                {sortedTeachers.map((t, idx) => {
                   const isAlreadyInUnit = activeAssignments.some(a => a.teacherId === t.id);
                   const tAssigns = assignments.filter(a => a.teacherId === t.id);
                   return (
                     <option 
-                      key={t.id} 
+                      key={`${t.id || 'teacher'}-${idx}`} 
                       value={t.id}
                       disabled={isAlreadyInUnit}
                     >
@@ -632,20 +946,43 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
               </select>
             </div>
 
-            {/* Jawatan Dropdown: Hanya 3 Jawatan */}
+            {/* Jawatan Dropdown dengan Jurulatih, Pengurus, Ketua Panitia & Pilihan Jawatan Lain */}
             <div>
               <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1.5">
                 Jawatan Guru *
               </label>
               <select
-                value={selectedRole}
-                onChange={e => setSelectedRole(e.target.value as RoleType)}
+                value={isCustomRoleSelected ? '__CUSTOM__' : selectedRole}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === '__CUSTOM__') {
+                    setIsCustomRoleSelected(true);
+                  } else {
+                    setIsCustomRoleSelected(false);
+                    setSelectedRole(val as RoleType);
+                  }
+                }}
                 className="w-full text-sm font-extrabold px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs focus:ring-2 focus:ring-emerald-500 cursor-pointer"
               >
                 {rolesAvailable.map(r => (
                   <option key={r} value={r}>{r}</option>
                 ))}
+                <option value="__CUSTOM__" className="text-purple-600 font-bold">+ Tambah Jawatan Lain...</option>
               </select>
+
+              {isCustomRoleSelected && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={newCustomRoleName}
+                    onChange={e => setNewCustomRoleName(e.target.value)}
+                    placeholder="Taipkan jawatan baharu..."
+                    className="w-full text-xs font-bold px-3 py-1.5 rounded-lg border border-purple-400 bg-purple-50 text-purple-900 dark:bg-purple-950/60 dark:text-purple-200 shadow-2xs outline-none focus:ring-2 focus:ring-purple-500"
+                    autoFocus
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             {/* Sesi Dropdown & Submit Button */}
@@ -666,7 +1003,7 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
 
               <button
                 type="submit"
-                disabled={!selectedTeacherId}
+                disabled={!selectedTeacherId || (isCustomRoleSelected && !newCustomRoleName.trim())}
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-extrabold text-sm shadow-md transition-all shrink-0 flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-5 h-5" />
@@ -691,17 +1028,33 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-3 text-xs font-semibold">
+            <div className="flex items-center gap-2.5 flex-wrap text-xs font-semibold">
               <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
-                <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
-                <span>Ketua Guru Penasihat</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                <span>Ketua</span>
               </span>
               <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
-                <span className="w-3 h-3 rounded-full bg-blue-600 inline-block" />
-                <span>Setiausaha</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block" />
+                <span>Penyelaras</span>
               </span>
               <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
-                <span className="w-3 h-3 rounded-full bg-slate-400 inline-block" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
+                <span>Jurulatih</span>
+              </span>
+              <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
+                <span>Pengurus</span>
+              </span>
+              <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-600 inline-block" />
+                <span>Ketua Panitia</span>
+              </span>
+              <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block" />
+                <span>SU</span>
+              </span>
+              <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block" />
                 <span>AJK</span>
               </span>
             </div>
@@ -739,7 +1092,7 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
 
                     return (
                       <tr 
-                        key={assign.id}
+                        key={assign.id ? `${assign.id}-${idx}` : `assign-${idx}`}
                         className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
                       >
                         {/* Bil */}
@@ -749,7 +1102,7 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
 
                         {/* Nama Guru dengan Fungsi Edit */}
                         <td className="py-4 px-4">
-                          <div className="flex items-center gap-2 group">
+                          <div className="flex items-center gap-2 flex-wrap group">
                             <button
                               type="button"
                               onClick={() => onEditTeacher && onEditTeacher(teacher)}
@@ -766,6 +1119,12 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                             }`}>
                               {teacher.gender === 'L' ? 'Lelaki' : 'Perempuan'}
                             </span>
+                            {currentCategoryCoords.some(c => c.teacherId === teacher.id) && (
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-xs shrink-0 flex items-center gap-1" title={`Penyelaras ${getCategoryTitle()}`}>
+                                <Award className="w-3 h-3" />
+                                <span>⭐ Penyelaras {getCategoryTitle()}</span>
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-slate-500 font-mono mt-0.5">
                             ID: {teacher.staffId}
@@ -806,15 +1165,34 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                           )}
                         </td>
 
-                        {/* Drop-down Jawatan: Ketua Guru Penasihat / Setiausaha / AJK */}
+                        {/* Drop-down Jawatan dengan Jurulatih, Pengurus, Ketua Panitia & Jawatan Lain */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2">
                             <select
                               value={assign.role}
-                              onChange={e => onUpdateRole(assign.id, e.target.value as RoleType)}
+                              onChange={e => {
+                                const val = e.target.value;
+                                if (val === '__ADD_NEW__') {
+                                  setRowCustomRoleModal({
+                                    assignmentId: assign.id,
+                                    teacherName: teacher.name,
+                                  });
+                                  setRowCustomRoleInput('');
+                                } else {
+                                  onUpdateRole(assign.id, val as RoleType);
+                                }
+                              }}
                               className={`w-full text-xs sm:text-sm font-extrabold px-3 py-2 rounded-xl border-2 cursor-pointer shadow-xs transition-all ${
-                                assign.role === 'Ketua Guru Penasihat'
+                                assign.role === 'Penyelaras'
+                                  ? 'border-purple-400 bg-purple-50 text-purple-900 dark:bg-purple-950/60 dark:text-purple-200'
+                                  : assign.role === 'Ketua Guru Penasihat'
                                   ? 'border-rose-400 bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200'
+                                  : assign.role === 'Jurulatih'
+                                  ? 'border-emerald-400 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
+                                  : assign.role === 'Pengurus'
+                                  ? 'border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
+                                  : assign.role === 'Ketua Panitia'
+                                  ? 'border-cyan-400 bg-cyan-50 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-200'
                                   : assign.role === 'Setiausaha'
                                   ? 'border-blue-400 bg-blue-50 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200'
                                   : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
@@ -823,6 +1201,7 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                               {rolesAvailable.map(r => (
                                 <option key={r} value={r}>{r}</option>
                               ))}
+                              <option value="__ADD_NEW__" className="text-purple-600 font-bold">+ Tambah Jawatan Lain...</option>
                             </select>
                           </div>
                         </td>
@@ -928,7 +1307,17 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
                   type="text"
                   value={unitFormName}
                   onChange={e => setUnitFormName(e.target.value)}
-                  placeholder="Contoh: Kadet Remaja Sekolah, Kelab Memanah, dsb."
+                  placeholder={
+                    category === 'PEMBANGUNAN' 
+                      ? "Contoh: Kokurikulum Pendidikan Khas (PPKI), PAJSK, Inovasi STEM, Koperasi"
+                      : category === 'RUMAH_SUKAN'
+                      ? "Contoh: Rumah Panglima (Ungu), Rumah Syahbandar (Kuning)"
+                      : category === 'BERUNIFORM'
+                      ? "Contoh: Persekutuan Pengakap Malaysia, Kadet Remaja Sekolah"
+                      : category === 'SUKAN'
+                      ? "Contoh: Kelab Bola Sepak, Kelab Badminton, Kelab Catur"
+                      : "Contoh: Kelab STEM & Robotik, Persatuan Bahasa Melayu"
+                  }
                   className="w-full text-sm font-semibold px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                   autoFocus
                   required
@@ -1014,6 +1403,68 @@ export const UnitManagerView: React.FC<UnitManagerViewProps> = ({
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Ya, Padam Unit Sekarang</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tambah Jawatan Khas Inline */}
+      {rowCustomRoleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+              <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Award className="w-5 h-5 text-purple-600" />
+                <span>Tambah Jawatan Guru</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setRowCustomRoleModal(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
+              Masukkan nama jawatan baharu untuk <b>{rowCustomRoleModal.teacherName}</b> di dalam unit ini:
+            </p>
+
+            <input
+              type="text"
+              value={rowCustomRoleInput}
+              onChange={e => setRowCustomRoleInput(e.target.value)}
+              placeholder="Cth: Pegawai Teknikal / Fasilitator / Penolong Jurulatih"
+              className="w-full text-sm font-semibold px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white mb-4 focus:ring-2 focus:ring-purple-500 outline-none"
+              autoFocus
+            />
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setRowCustomRoleModal(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={!rowCustomRoleInput.trim()}
+                onClick={() => {
+                  const role = rowCustomRoleInput.trim();
+                  if (role) {
+                    onUpdateRole(rowCustomRoleModal.assignmentId, role as RoleType);
+                    if (!customRoles.includes(role)) {
+                      setCustomRoles(prev => [...prev, role]);
+                    }
+                    onAddCustomRole?.(role);
+                    setRowCustomRoleModal(null);
+                  }
+                }}
+                className="px-5 py-2 text-xs font-extrabold bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded-xl shadow-md transition-colors cursor-pointer"
+              >
+                Simpan Jawatan
               </button>
             </div>
           </div>

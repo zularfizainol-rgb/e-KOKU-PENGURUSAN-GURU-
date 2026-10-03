@@ -257,7 +257,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                       };
 
                       return (
-                        <tr key={t.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                        <tr key={`${t.id || 'teacher'}-${idx}`} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                           <td className="border border-slate-300 py-1.5 px-1 text-center font-bold">{idx + 1}</td>
                           <td className="border border-slate-300 py-1.5 px-2">
                             <div className="font-bold text-slate-900">{t.name}</div>

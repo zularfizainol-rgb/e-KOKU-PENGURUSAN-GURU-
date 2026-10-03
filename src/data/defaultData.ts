@@ -272,40 +272,7 @@ export const DEFAULT_UNITS: KokuUnit[] = [
     targetAfternoon: 5,
   },
 
-  // 5. UNIT PEMBANGUNAN & KHAS
-  {
-    id: 'p-elit-sukan',
-    name: 'Jawatankuasa Pembangunan Sukan Elit',
-    code: 'ELIT',
-    category: 'PEMBANGUNAN',
-    color: '#8B5CF6',
-    iconName: 'Trophy',
-    description: 'Memantau dan melatih bakat murid untuk MSSD/MSSK/MSSM',
-    targetMorning: 3,
-    targetAfternoon: 2,
-  },
-  {
-    id: 'p-inovasi',
-    name: 'Jawatankuasa Inovasi & Kebitaraan Sekolah',
-    code: 'INOVASI',
-    category: 'PEMBANGUNAN',
-    color: '#EC4899',
-    iconName: 'Sparkles',
-    description: 'Penyertaan pertandingan inovasi peringkat negeri & kebangsaan',
-    targetMorning: 3,
-    targetAfternoon: 2,
-  },
-  {
-    id: 'p-rimup',
-    name: 'Jawatankuasa RIMUP & Integrasi Kaum',
-    code: 'RIMUP',
-    category: 'PEMBANGUNAN',
-    color: '#06B6D4',
-    iconName: 'Users',
-    description: 'Program Rancangan Integrasi Murid Untuk Perpaduan',
-    targetMorning: 2,
-    targetAfternoon: 2,
-  },
+  // 5. UNIT PEMBANGUNAN & KHAS (Ditentukan dan dinamakan sendiri oleh GPK Kokurikulum mengikut keperluan sekolah)
 ];
 
 export const DEFAULT_TEACHERS: Teacher[] = [];
@@ -473,13 +440,4 @@ export const SAMPLE_ASSIGNMENTS: UnitAssignment[] = [
   { id: 'a78', teacherId: 't9', unitId: 'r-syahbandar', role: 'AJK', session: 'Pagi' },
   { id: 'a79', teacherId: 't19', unitId: 'r-syahbandar', role: 'AJK', session: 'Petang' },
   { id: 'a80', teacherId: 't25', unitId: 'r-syahbandar', role: 'Setiausaha', session: 'Petang' },
-
-  // 5. PEMBANGUNAN & KHAS
-  { id: 'a81', teacherId: 't7', unitId: 'p-elit-sukan', role: 'Ketua Guru Penasihat', session: 'Pagi' },
-  { id: 'a82', teacherId: 't15', unitId: 'p-elit-sukan', role: 'AJK', session: 'Pagi' },
-  { id: 'a83', teacherId: 't26', unitId: 'p-elit-sukan', role: 'AJK', session: 'Petang' },
-  { id: 'a84', teacherId: 't9', unitId: 'p-inovasi', role: 'Ketua Guru Penasihat', session: 'Pagi' },
-  { id: 'a85', teacherId: 't27', unitId: 'p-inovasi', role: 'Setiausaha', session: 'Petang' },
-  { id: 'a86', teacherId: 't4', unitId: 'p-rimup', role: 'Ketua Guru Penasihat', session: 'Pagi' },
-  { id: 'a87', teacherId: 't23', unitId: 'p-rimup', role: 'AJK', session: 'Petang' },
 ];

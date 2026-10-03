@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Trash2,
   AlertCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Smartphone
 } from 'lucide-react';
 import { SchoolSettings, ConflictIssue, Teacher, SessionType } from '../types/koku';
 import { User } from 'firebase/auth';
@@ -29,6 +30,7 @@ interface NavbarProps {
   setActiveTab: (tab: string) => void;
   onOpenConflicts: () => void;
   onOpenGoogleSheet: () => void;
+  onOpenQr?: () => void;
   onOpenImport: () => void;
   onExportExcel: () => void;
   onOpenPrint: () => void;
@@ -38,6 +40,7 @@ interface NavbarProps {
   syncStatus?: 'idle' | 'saving' | 'saved' | 'error';
   lastSyncTime?: string | null;
   onManualSyncNow?: () => void;
+  onRefreshFromSheet?: () => void;
   onClearAllData?: () => void;
   onResetToSample?: () => void;
   onCleanInvalidData?: () => void;
@@ -52,6 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenConflicts,
   onOpenGoogleSheet,
+  onOpenQr,
   onOpenImport,
   onExportExcel,
   onOpenPrint,
@@ -61,6 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   syncStatus = 'idle',
   lastSyncTime,
   onManualSyncNow,
+  onRefreshFromSheet,
   onClearAllData,
   onResetToSample,
   onCleanInvalidData,
@@ -282,6 +287,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </button>
 
+              {/* Butang Segar Semula / Refresh Data Terus dari Google Sheet */}
+              {sheetId && onRefreshFromSheet && (
+                <button
+                  onClick={onRefreshFromSheet}
+                  disabled={isSyncing}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white border border-teal-500 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  title="Segar semula & tarik data agihan atau guru terkini dari Google Sheet ke dalam aplikasi"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh Data</span>
+                </button>
+              )}
+
               {sheetId && (
                 <a
                   href={`https://docs.google.com/spreadsheets/d/${sheetId}/edit`}
@@ -295,6 +313,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </a>
               )}
             </div>
+
+            {/* Butang Imbas Telefon / QR */}
+            {onOpenQr && (
+              <button
+                type="button"
+                onClick={onOpenQr}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-xs transition-all cursor-pointer"
+                title="Buka atau imbas kod QR di telefon pintar untuk akses mudah alih tanpa kehilangan data"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">Imbas Telefon</span>
+              </button>
+            )}
 
             {/* Import Button */}
             <button

@@ -1,5 +1,17 @@
 import * as XLSX from 'xlsx';
-import { Teacher, KokuUnit, UnitAssignment, ConflictIssue, UnitCategory, SessionType, RoleType } from '../types/koku';
+import { 
+  Teacher, 
+  KokuUnit, 
+  UnitAssignment, 
+  ConflictIssue, 
+  UnitCategory, 
+  SessionType, 
+  RoleType, 
+  CoordinatorSessionType, 
+  CategoryCoordinator,
+  ExecutiveRoleType,
+  ExecutiveLeader
+} from '../types/koku';
 
 /**
  * Pemetaan Gred Perkhidmatan Perguruan KPM:
@@ -223,15 +235,189 @@ export function getCategoryBadge(category: UnitCategory): { label: string; bg: s
   }
 }
 
-export function getRoleColorBadge(role: RoleType): { bg: string; text: string } {
+export function getCategoryTitle(category: UnitCategory): string {
+  switch (category) {
+    case 'BERUNIFORM':
+      return 'Unit Beruniform';
+    case 'KELAB':
+      return 'Kelab & Persatuan';
+    case 'SUKAN':
+      return 'Sukan & Permainan';
+    case 'RUMAH_SUKAN':
+      return 'Rumah Sukan';
+    case 'PEMBANGUNAN':
+      return 'Pembangunan & Khas';
+    default:
+      return category;
+  }
+}
+
+export function getCoordinatorSessionBadge(session: CoordinatorSessionType): { label: string; bg: string; text: string; icon: string } {
+  switch (session) {
+    case 'Pagi':
+      return {
+        label: 'Sesi Pagi',
+        bg: 'bg-amber-100 dark:bg-amber-950/80 border-amber-300 dark:border-amber-700',
+        text: 'text-amber-900 dark:text-amber-200',
+        icon: '☀️',
+      };
+    case 'Petang':
+      return {
+        label: 'Sesi Petang',
+        bg: 'bg-indigo-100 dark:bg-indigo-950/80 border-indigo-300 dark:border-indigo-700',
+        text: 'text-indigo-900 dark:text-indigo-200',
+        icon: '🌇',
+      };
+    case 'Kedua-dua Sesi':
+      return {
+        label: 'Kedua-dua Sesi',
+        bg: 'bg-emerald-100 dark:bg-emerald-950/80 border-emerald-300 dark:border-emerald-700',
+        text: 'text-emerald-900 dark:text-emerald-200',
+        icon: '✨',
+      };
+    default:
+      return {
+        label: session,
+        bg: 'bg-purple-100 dark:bg-purple-950/80 border-purple-300 dark:border-purple-700',
+        text: 'text-purple-900 dark:text-purple-200',
+        icon: '⭐',
+      };
+  }
+}
+
+export const STANDARD_ROLES: RoleType[] = [
+  'Ketua Guru Penasihat',
+  'Penyelaras',
+  'Setiausaha',
+  'Jurulatih',
+  'Pengurus',
+  'Ketua Panitia',
+  'Penolong Ketua Guru Penasihat',
+  'Bendahari',
+  'AJK',
+];
+
+export const EXECUTIVE_ROLES: ExecutiveRoleType[] = [
+  'Setiausaha Kokurikulum',
+  'Naib Setiausaha Kokurikulum',
+  'Setiausaha Sukan',
+  'Naib Setiausaha Sukan',
+];
+
+export function getExecutiveRoleMeta(role: string): { title: string; shortTitle: string; icon: string; bg: string; text: string; ring: string } {
+  switch (role) {
+    case 'Setiausaha Kokurikulum':
+      return {
+        title: 'Setiausaha Kokurikulum',
+        shortTitle: 'SU Kokurikulum',
+        icon: '📋',
+        bg: 'bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-700 text-white shadow-md',
+        text: 'text-blue-700 dark:text-blue-300',
+        ring: 'ring-2 ring-blue-300 dark:ring-blue-600',
+      };
+    case 'Naib Setiausaha Kokurikulum':
+      return {
+        title: 'Naib Setiausaha Kokurikulum',
+        shortTitle: 'Naib SU Kokurikulum',
+        icon: '📑',
+        bg: 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-md',
+        text: 'text-sky-700 dark:text-sky-300',
+        ring: 'ring-2 ring-sky-300 dark:ring-sky-600',
+      };
+    case 'Setiausaha Sukan':
+      return {
+        title: 'Setiausaha Sukan',
+        shortTitle: 'SU Sukan',
+        icon: '⚡',
+        bg: 'bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 text-white shadow-md',
+        text: 'text-amber-700 dark:text-amber-300',
+        ring: 'ring-2 ring-amber-300 dark:ring-amber-600',
+      };
+    case 'Naib Setiausaha Sukan':
+      return {
+        title: 'Naib Setiausaha Sukan',
+        shortTitle: 'Naib SU Sukan',
+        icon: '🏃',
+        bg: 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md',
+        text: 'text-orange-700 dark:text-orange-300',
+        ring: 'ring-2 ring-orange-300 dark:ring-orange-600',
+      };
+    default:
+      return {
+        title: role,
+        shortTitle: role,
+        icon: '🎖️',
+        bg: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md',
+        text: 'text-purple-700 dark:text-purple-300',
+        ring: 'ring-2 ring-purple-300 dark:ring-purple-600',
+      };
+  }
+}
+
+export function getRoleColorBadge(role: RoleType): { bg: string; text: string; isPenyelaras?: boolean; isExecutive?: boolean } {
+  const normalized = (role || '').trim().toLowerCase();
+  
+  // Jawatan Eksekutif / Pentadbiran Kokurikulum Utama
+  if (role === 'Setiausaha Kokurikulum' || normalized.includes('setiausaha kokurikulum') && !normalized.includes('naib')) {
+    return {
+      bg: 'bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-700 text-white font-black shadow-md ring-2 ring-blue-300 dark:ring-blue-500 border border-blue-200',
+      text: 'text-blue-700 dark:text-blue-300',
+      isExecutive: true,
+    };
+  }
+  if (role === 'Naib Setiausaha Kokurikulum' || normalized.includes('naib setiausaha kokurikulum') || normalized.includes('penolong setiausaha kokurikulum')) {
+    return {
+      bg: 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-black shadow-md ring-2 ring-sky-300 dark:ring-sky-500 border border-sky-200',
+      text: 'text-sky-700 dark:text-sky-300',
+      isExecutive: true,
+    };
+  }
+  if (role === 'Setiausaha Sukan' || normalized.includes('setiausaha sukan') && !normalized.includes('naib')) {
+    return {
+      bg: 'bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 text-white font-black shadow-md ring-2 ring-amber-300 dark:ring-amber-500 border border-amber-200',
+      text: 'text-amber-700 dark:text-amber-300',
+      isExecutive: true,
+    };
+  }
+  if (role === 'Naib Setiausaha Sukan' || normalized.includes('naib setiausaha sukan') || normalized.includes('penolong setiausaha sukan')) {
+    return {
+      bg: 'bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black shadow-md ring-2 ring-orange-300 dark:ring-orange-500 border border-orange-200',
+      text: 'text-orange-700 dark:text-orange-300',
+      isExecutive: true,
+    };
+  }
+
+  if (normalized === 'penyelaras' || normalized.includes('penyelaras')) {
+    return { 
+      bg: 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white font-black shadow-md ring-2 ring-purple-300 dark:ring-purple-500 border border-purple-200', 
+      text: 'text-purple-600 dark:text-purple-400',
+      isPenyelaras: true,
+    };
+  }
+
   switch (role) {
     case 'Ketua Guru Penasihat':
-      return { bg: 'bg-rose-500 text-white font-bold shadow-xs', text: 'text-white' };
+      return { bg: 'bg-rose-500 text-white font-bold shadow-xs', text: 'text-rose-600 dark:text-rose-400' };
+    case 'Jurulatih':
+      return { bg: 'bg-emerald-600 text-white font-bold shadow-xs', text: 'text-emerald-600 dark:text-emerald-400' };
+    case 'Pengurus':
+      return { bg: 'bg-amber-500 text-white font-bold shadow-xs', text: 'text-amber-600 dark:text-amber-400' };
+    case 'Ketua Panitia':
+      return { bg: 'bg-cyan-600 text-white font-bold shadow-xs', text: 'text-cyan-600 dark:text-cyan-400' };
     case 'Setiausaha':
-      return { bg: 'bg-blue-600 text-white font-bold shadow-xs', text: 'text-white' };
+      return { bg: 'bg-blue-600 text-white font-bold shadow-xs', text: 'text-blue-600 dark:text-blue-400' };
+    case 'Penolong Ketua Guru Penasihat':
+      return { bg: 'bg-pink-600 text-white font-medium shadow-xs', text: 'text-pink-600 dark:text-pink-400' };
+    case 'Bendahari':
+      return { bg: 'bg-teal-600 text-white font-medium shadow-xs', text: 'text-teal-600 dark:text-teal-400' };
     case 'AJK':
-    default:
       return { bg: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-medium', text: 'text-slate-700 dark:text-slate-300' };
+    default:
+      // Custom / Jawatan Lain
+      return { 
+        bg: 'bg-violet-600 text-white font-bold shadow-xs', 
+        text: 'text-violet-600 dark:text-violet-400' 
+      };
   }
 }
 
@@ -240,7 +426,9 @@ export function exportMatrixToExcel(
   units: KokuUnit[],
   assignments: UnitAssignment[],
   schoolName: string,
-  academicYear: string
+  academicYear: string,
+  categoryCoordinators: CategoryCoordinator[] = [],
+  executiveLeaders: ExecutiveLeader[] = []
 ) {
   const wb = XLSX.utils.book_new();
   const unitMap = new Map(units.map(u => [u.id, u]));
@@ -251,6 +439,16 @@ export function exportMatrixToExcel(
   // 1. TAB JADUAL KESELURUHAN
   const masterData = sortedTeachers.map((teacher, index) => {
     const tAssigns = assignments.filter(a => a.teacherId === teacher.id);
+    const teacherCoords = (categoryCoordinators || []).filter(c => c.teacherId === teacher.id);
+    const coordStr = teacherCoords.length > 0
+      ? teacherCoords.map(c => `${c.roleTitle || 'Penyelaras'} ${getCategoryTitle(c.category)} (${c.session})`).join('; ')
+      : '-';
+
+    const teacherExecs = (executiveLeaders || []).filter(e => e.teacherId === teacher.id);
+    const execStr = teacherExecs.length > 0
+      ? teacherExecs.map(e => `${e.role} (${e.session})`).join('; ')
+      : '-';
+
     const uniform = tAssigns.find(a => unitMap.get(a.unitId)?.category === 'BERUNIFORM');
     const club = tAssigns.find(a => unitMap.get(a.unitId)?.category === 'KELAB');
     const sport = tAssigns.find(a => unitMap.get(a.unitId)?.category === 'SUKAN');
@@ -264,6 +462,8 @@ export function exportMatrixToExcel(
       'Jantina': teacher.gender,
       'Gred (Lama / SSPA)': formatTeacherGrade(teacher.grade),
       'Sesi Bertugas': teacher.session,
+      'Jawatan Eksekutif Kokurikulum': execStr,
+      'Penyelaras Unit Besar': coordStr,
       'Pasukan Badan Beruniform': uniform ? `${unitMap.get(uniform.unitId)?.name} (${uniform.role})` : 'Tiada',
       'Kelab & Persatuan': club ? `${unitMap.get(club.unitId)?.name} (${club.role})` : 'Tiada',
       'Sukan & Permainan': sport ? `${unitMap.get(sport.unitId)?.name} (${sport.role})` : 'Tiada',
@@ -351,12 +551,70 @@ export function exportMatrixToExcel(
   const wsStats = XLSX.utils.aoa_to_sheet(statsRows);
   XLSX.utils.book_append_sheet(wb, wsStats, 'Analisis_Sesi');
 
+  // 4. TAB SENARAI PENYELARAS UNIT BESAR (Jika ada dilantik)
+  if (categoryCoordinators && categoryCoordinators.length > 0) {
+    const teacherLookup = new Map(teachers.map(t => [t.id, t]));
+    const coordRows: (string | number)[][] = [
+      ['SENARAI GURU PENYELARAS UNIT BESAR KOKURIKULUM', ''],
+      ['Sekolah', schoolName],
+      ['Tahun Akademik', academicYear],
+      ['', ''],
+      ['Bil', 'Kategori Unit Besar', 'Gelaran Jawatan', 'Pilihan Sesi Bertugas', 'Nama Guru', 'Sesi Hakiki Guru', 'Gred Jawatan', 'No. Telefon']
+    ];
+
+    categoryCoordinators.forEach((c, idx) => {
+      const teacher = teacherLookup.get(c.teacherId);
+      coordRows.push([
+        idx + 1,
+        getCategoryTitle(c.category),
+        c.roleTitle || 'Penyelaras',
+        c.session,
+        teacher?.name || 'Guru Tidak Ditemui',
+        teacher?.session || '-',
+        teacher?.grade || '-',
+        teacher?.phone || '-'
+      ]);
+    });
+
+    const wsCoords = XLSX.utils.aoa_to_sheet(coordRows);
+    XLSX.utils.book_append_sheet(wb, wsCoords, 'Penyelaras_Unit_Besar');
+  }
+
+  // 5. TAB SENARAI JAWATANKUASA PENGURUSAN KOKURIKULUM SEKOLAH (SU Koku, Naib SU, SU Sukan, Naib SU Sukan)
+  if (executiveLeaders && executiveLeaders.length > 0) {
+    const teacherLookup = new Map(teachers.map(t => [t.id, t]));
+    const execRows: (string | number)[][] = [
+      ['SENARAI JAWATANKUASA PENGURUSAN KOKURIKULUM SEKOLAH', ''],
+      ['Sekolah', schoolName],
+      ['Tahun Akademik', academicYear],
+      ['', ''],
+      ['Bil', 'Jawatan Pengurusan Kokurikulum', 'Nama Guru Dilantik', 'No. Fail / KP', 'Sesi Dilantik', 'Sesi Asal Guru', 'Gred Jawatan', 'Tarikh Lantikan']
+    ];
+
+    executiveLeaders.forEach((e, idx) => {
+      const teacher = teacherLookup.get(e.teacherId);
+      execRows.push([
+        idx + 1,
+        e.role,
+        teacher?.name || 'Guru Tidak Ditemui',
+        teacher?.staffId || '-',
+        e.session,
+        teacher?.session || '-',
+        formatTeacherGrade(teacher?.grade),
+        e.appointedAt ? new Date(e.appointedAt).toLocaleDateString('ms-MY') : '-'
+      ]);
+    });
+
+    const wsExec = XLSX.utils.aoa_to_sheet(execRows);
+    XLSX.utils.book_append_sheet(wb, wsExec, 'Jawatankuasa_Eksekutif');
+  }
+
   const fileName = `Agihan_Kokurikulum_${schoolName.replace(/[^a-zA-Z0-9]/g, '_')}_${academicYear.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`;
   XLSX.writeFile(wb, fileName);
 }
 
 /**
- * Memeriksa sama ada teks nama adalah nama guru yang sah atau teks sistem/tajuk jadual/nombor
+ * Memeriksa sama ada teks nama adalah nama guru yang sah atau teks sistem/tajuk jadual/nombor/panduan
  */
 export function isValidTeacherName(name: string): boolean {
   if (!name || typeof name !== 'string') return false;
@@ -366,20 +624,42 @@ export function isValidTeacherName(name: string): boolean {
   // Singkirkan jika hanya nombor (contohnya index 1, 2, 3...)
   if (/^\d+$/.test(trimmed)) return false;
 
-  // Singkirkan jika corak ID sistem yang tersilap masuk
-  if (/^imported-\d+/i.test(trimmed) || /^t-\d+/i.test(trimmed) || /^imp-\d+/i.test(trimmed) || /^t-sheet/i.test(trimmed)) {
+  // Singkirkan jika format tarikh atau masa atau formula
+  if (/^\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(trimmed) || /^\d{1,2}:\d{2}/.test(trimmed) || /^=/.test(trimmed)) {
     return false;
   }
 
-  // Singkirkan jika tajuk lajur yang termasuk sebagai baris guru
+  // Singkirkan jika corak ID sistem yang tersilap masuk
+  if (/^imported-\d+/i.test(trimmed) || /^t-\d+/i.test(trimmed) || /^imp-\d+/i.test(trimmed) || /^t-sheet/i.test(trimmed) || /^a-sheet/i.test(trimmed) || /^u-custom/i.test(trimmed)) {
+    return false;
+  }
+
   const lower = trimmed.toLowerCase();
+
+  // Singkirkan teks tajuk, panduan GPK, statistik, atau tajuk helaian yang termasuk tersilap
   const invalidKeywords = [
-    'nama guru', 'nama penuh guru', 'nama', 'guru', 'bil', 'no', 'jawatan',
-    'sesi', 'jantina', 'gred', 'no telefon', 'emel', 'catatan', 'senarai guru',
+    'nama guru', 'nama penuh guru', 'nama', 'guru', 'bil', 'no', 'jawatan', 'jawatan guru',
+    'sesi', 'sesi bertugas', 'sesi hakiki guru', 'sesi unit', 'jantina', 'gred', 'gred jawatan',
+    'no telefon', 'emel', 'emel rasmi', 'catatan', 'senarai guru', 'senarai unit', 'ringkasan unit',
     'agihan kokurikulum', 'unit beruniform', 'kelab persatuan', 'sukan permainan',
-    'rumah sukan', 'jumlah', 'tamat'
+    'rumah sukan', 'jumlah', 'jumlah keseluruhan guru', 'tamat', 'id guru', 'id agihan', 'kod unit',
+    'tahun akademik', 'tarikh kemaskini', 'no. fail / kp guru', 'no. kad pengenalan / fail',
+    'panduan pengurusan data', 'panduan gpk', 'ciri-ciri & cara penggunaan', 'keterangan tab helaian',
+    'sekolah:', 'tahun akademik:', 'tarikh disimpan:', 'akses bebas & tanpa had',
+    'edit langsung di google sheet', 'buka di telefon atau komputer', 'segerak semula ke e-koku',
+    'ketua guru penasihat', 'setiausaha', 'guru sesi pagi', 'guru sesi petang',
+    'pengakap', 'pandu puteri', 'bulan sabit merah', 'krs', 'puteri islam', 'tkrs',
+    'bahasa melayu', 'bahasa inggeris', 'stem', 'agama islam', 'seni budaya',
+    'bola sepak', 'badminton', 'bola jaring', 'olahraga', 'sepat takraw',
+    'merah', 'biru', 'hijau', 'kuning', 'pagi', 'petang'
   ];
+
   if (invalidKeywords.includes(lower)) return false;
+
+  // Jika mengandungi frasa tajuk panduan
+  if (lower.startsWith('panduan ') || lower.startsWith('tab "') || lower.startsWith('ciri-ciri') || lower.startsWith('sekolah:')) {
+    return false;
+  }
 
   return true;
 }

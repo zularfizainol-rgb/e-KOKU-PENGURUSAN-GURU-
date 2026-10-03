@@ -560,8 +560,26 @@ export function parseRawSheetData(
     const headerRow = rawTeachers[0].map(h => String(h || '').toLowerCase().trim());
     
     // Find index of headers dynamically
-    const nameIdx = headerRow.findIndex(h => /nama|guru|teacher|name/i.test(h));
-    const staffIdIdx = headerRow.findIndex(h => /kp|ic|fail|kad pengenalan|id/i.test(h));
+    const idIdx = headerRow.findIndex(h => /^(id|id[-_ ]?guru|kod[-_ ]?guru)$/i.test(h) || (/\bid\b/i.test(h) && /guru/i.test(h)));
+    
+    // Teacher name column must match 'nama' or 'name', or exactly 'guru' / 'teacher', but NOT 'id', 'bil', 'no', 'jawatan', 'gred', 'sesi', 'telefon', 'emel'
+    let nameIdx = headerRow.findIndex(h => 
+      (/nama|name/i.test(h) || /^guru$/i.test(h) || /^teacher$/i.test(h)) && 
+      !/^(id|kod|no|bil|sesi|gred|jawatan|unit|emel|email|tel|telefon)/i.test(h) &&
+      !/\b(id|kod|jawatan|gred)\b/i.test(h)
+    );
+    if (nameIdx === -1) {
+      nameIdx = headerRow.findIndex(h => /nama|name/i.test(h));
+    }
+    
+    // Staff ID / No KP / No Fail (must NOT be the ID Guru column or Name column)
+    let staffIdIdx = headerRow.findIndex((h, idx) => 
+      idx !== idIdx && idx !== nameIdx && /kp|ic|fail|kad[-_ ]?pengenalan|no[-_ ]?kp/i.test(h)
+    );
+    if (staffIdIdx === -1) {
+      staffIdIdx = headerRow.findIndex((h, idx) => idx !== idIdx && idx !== nameIdx && /\b(kp|ic|fail)\b/i.test(h));
+    }
+    
     const genderIdx = headerRow.findIndex(h => /jantina|gender|sex/i.test(h));
     const sessionIdx = headerRow.findIndex(h => /sesi|session|waktu/i.test(h));
     const gradeIdx = headerRow.findIndex(h => /gred|grade|jawatan/i.test(h));
@@ -570,8 +588,9 @@ export function parseRawSheetData(
 
     const rows = rawTeachers.slice(1);
     rows.forEach((r, idx) => {
-      const hasId = Boolean(r[0] && r[0].trim().startsWith('t-'));
-      const id = hasId ? r[0].trim() : `t-sheet-${idx + 1}`;
+      const rawId = (idIdx !== -1 && r[idIdx]) ? r[idIdx].trim() : (r[0] ? r[0].trim() : '');
+      const hasValidId = Boolean(rawId && (rawId.startsWith('imported-') || rawId.startsWith('t-') || rawId.startsWith('imp-')));
+      const id = hasValidId ? rawId : `t-sheet-${idx + 1}`;
       
       let name = '';
       let staffId = '';
@@ -590,7 +609,7 @@ export function parseRawSheetData(
         grade = gradeIdx !== -1 ? (r[gradeIdx] || 'DG41') : 'DG41';
         phone = phoneIdx !== -1 ? (r[phoneIdx] || '') : '';
         email = emailIdx !== -1 ? (r[emailIdx] || '') : '';
-      } else if (hasId) {
+      } else if (hasValidId) {
         // Fallback standard format: ID (0), No (1), Nama (2), No KP (3), Jantina (4), Sesi (5), Gred (6), Tel (7), Emel (8)
         name = r[2] || r[1] || '';
         staffId = r[3] || '';
@@ -651,18 +670,51 @@ export function parseRawSheetData(
   const knownUnitMap = new Map<string, KokuUnit>(currentUnits.map(u => [u.name.toLowerCase().trim(), u]));
 
   if (rawUnits.length > 1) {
+    const uHeaderRow = rawUnits[0].map(h => String(h || '').toLowerCase().trim());
+    const uIdIdx = uHeaderRow.findIndex(h => /^(id|id.*unit|kod.*unit)$/i.test(h));
+    const uCatIdx = uHeaderRow.findIndex(h => /kategori|category/i.test(h));
+    const uNameIdx = uHeaderRow.findIndex(h => /nama.*unit|unit.*nama/i.test(h) || (/nama/i.test(h) && !/kategori|sesi|bil/i.test(h)));
+    const uCodeIdx = uHeaderRow.findIndex(h => /singkatan|kod/i.test(h) && !/id/i.test(h));
+
     const rows = rawUnits.slice(1);
     rows.forEach((r, idx) => {
-      const id = r[0] || `u-sheet-${idx + 1}`;
-      const categoryRaw = (r[2] || '').trim().toUpperCase();
-      const validCategory: UnitCategory = 
-        categoryRaw.includes('UNIFORM') ? 'BERUNIFORM' :
-        categoryRaw.includes('KELAB') || categoryRaw.includes('PERSATUAN') ? 'KELAB' :
-        categoryRaw.includes('SUKAN') && !categoryRaw.includes('RUMAH') ? 'SUKAN' :
-        categoryRaw.includes('RUMAH') ? 'RUMAH_SUKAN' : 'PEMBANGUNAN';
+      const id = (uIdIdx !== -1 && r[uIdIdx]) ? r[uIdIdx].trim() : (r[0] || `u-sheet-${idx + 1}`);
+      const categoryRaw = (uCatIdx !== -1 && r[uCatIdx] ? r[uCatIdx] : (r[2] || '')).trim().toUpperCase();
+      const name = (uNameIdx !== -1 && r[uNameIdx] ? r[uNameIdx] : (r[3] || '')).trim();
+      const code = (uCodeIdx !== -1 && r[uCodeIdx] ? r[uCodeIdx] : (r[4] || name.slice(0, 4))).trim().toUpperCase();
 
-      const name = (r[3] || '').trim();
-      const code = (r[4] || name.slice(0, 4)).trim().toUpperCase();
+      const nameLower = name.toLowerCase();
+
+      // PENTING: Unit Rumah Sukan (Bendahara, Temenggung, Laksamana, Syahbandar, Merah, Hijau, Biru, Kuning)
+      // MESTI sentiasa RUMAH_SUKAN, TIDAK BOLEH sama sekali masuk ke PEMBANGUNAN!
+      const isHouseUnit = 
+        categoryRaw.includes('RUMAH') || 
+        nameLower.includes('rumah sukan') || 
+        nameLower.startsWith('rumah ') ||
+        ['bendahara', 'temenggung', 'laksamana', 'syahbandar'].some(h => nameLower.includes(h)) ||
+        ['merah', 'hijau', 'biru', 'kuning'].some(c => nameLower.includes(`(${c})`) || nameLower.includes(`rumah ${c}`)) ||
+        /^(r-|rumah-)/i.test(id);
+
+      // Unit Pembangunan & Khas: PPKI, PAJSK, Inovasi, STEM, RIMUP, Koperasi, JPSS
+      const isDevSpecialUnit =
+        categoryRaw.includes('PEMBANGUNAN') ||
+        categoryRaw.includes('KHAS') ||
+        nameLower.includes('pembangunan') ||
+        nameLower.includes('tugas khas') ||
+        nameLower.includes('ppki') ||
+        nameLower.includes('pendidikan khas') ||
+        nameLower.includes('pajsk') ||
+        nameLower.includes('inovasi') ||
+        nameLower.includes('rimup') ||
+        nameLower.includes('koperasi') ||
+        nameLower.includes('jpss');
+
+      const validCategory: UnitCategory = 
+        isHouseUnit ? 'RUMAH_SUKAN' :
+        categoryRaw.includes('UNIFORM') || nameLower.includes('pengakap') || nameLower.includes('kadet') || nameLower.includes('pandu puteri') || nameLower.includes('pbsm') || nameLower.includes('bsmm') || nameLower.includes('puteri islam') || nameLower.includes('krs') ? 'BERUNIFORM' :
+        isDevSpecialUnit ? 'PEMBANGUNAN' :
+        categoryRaw.includes('SUKAN') || categoryRaw.includes('PERMAINAN') || nameLower.includes('bola') || nameLower.includes('badminton') || nameLower.includes('olahraga') || nameLower.includes('catur') || nameLower.includes('sepak takraw') ? 'SUKAN' :
+        'KELAB';
 
       if (name) {
         const existing = knownUnitMap.get(name.toLowerCase());
@@ -705,31 +757,107 @@ export function parseRawSheetData(
     if (t.staffId) teacherByName.set(t.staffId.toLowerCase().trim(), t);
   });
 
+  // Helper to normalize strings for robust comparison
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
   // Parse Assignments
   const parsedAssignments: UnitAssignment[] = [];
   if (rawAssignments.length > 1) {
     const aHeaders = rawAssignments[0].map(h => String(h || '').toLowerCase().trim());
-    const tNameCol = aHeaders.findIndex(h => /nama.*guru|guru|teacher/i.test(h));
-    const uNameCol = aHeaders.findIndex(h => /nama.*unit|unit/i.test(h));
-    const roleCol = aHeaders.findIndex(h => /jawatan|role/i.test(h));
-    const sessCol = aHeaders.findIndex(h => /sesi.*unit|sesi/i.test(h));
+    const tNameCol = aHeaders.findIndex(h => (/nama/i.test(h) && /guru|teacher/i.test(h)) || /^guru$/i.test(h));
+    const uNameCol = aHeaders.findIndex(h => (/nama/i.test(h) && /unit/i.test(h)) || (/unit/i.test(h) && !/sesi/i.test(h)));
+    const roleCol = aHeaders.findIndex(h => /jawatan|role|peranan/i.test(h));
+    const sessCol = aHeaders.findIndex(h => /sesi.*unit/i.test(h) || (/sesi/i.test(h) && !/hakiki/i.test(h)));
+
+    // Dynamic fallback index if headers differ
+    const effTNameCol = tNameCol !== -1 ? tNameCol : 2;
+    const effUNameCol = uNameCol !== -1 ? uNameCol : 5;
+    const effRoleCol = roleCol !== -1 ? roleCol : 7;
+    const effSessCol = sessCol !== -1 ? sessCol : 8;
 
     const rows = rawAssignments.slice(1);
     rows.forEach((r, idx) => {
+      if (!r || r.length === 0) return;
       const assignId = r[0] && r[0].startsWith('a-') ? r[0] : `a-sheet-${Date.now()}-${idx}`;
-      const teacherName = (tNameCol !== -1 ? r[tNameCol] : (r[2] || r[1] || '')).trim();
-      const unitName = (uNameCol !== -1 ? r[uNameCol] : (r[5] || r[3] || '')).trim();
-      const roleRaw = (roleCol !== -1 ? r[roleCol] : (r[7] || r[5] || 'AJK')).trim();
-      const sessionRaw = (sessCol !== -1 ? r[sessCol] : (r[8] || r[6] || 'Pagi')).trim();
+      const teacherName = (r[effTNameCol] || r[2] || r[1] || '').trim();
+      const unitName = (r[effUNameCol] || r[5] || r[3] || '').trim();
+      const roleRaw = (r[effRoleCol] || r[7] || r[5] || 'AJK').trim();
+      const sessionRaw = (r[effSessCol] || r[8] || r[6] || 'Pagi').trim();
 
-      const matchedTeacher = teacherByName.get(teacherName.toLowerCase());
-      const matchedUnit = unitByName.get(unitName.toLowerCase());
+      if (!teacherName && !unitName) return;
+
+      // 1. Match Teacher by exact or normalized name or ID
+      let matchedTeacher = teacherByName.get(teacherName.toLowerCase());
+      if (!matchedTeacher) {
+        const normT = normalize(teacherName);
+        matchedTeacher = parsedTeachers.find(t => normalize(t.name) === normT || (t.staffId && normalize(t.staffId) === normT));
+      }
+
+      // If teacher not yet in parsedTeachers (e.g. user added a new teacher row in Agihan tab directly)
+      if (!matchedTeacher && teacherName && isValidTeacherName(teacherName)) {
+        // Generate a completely unique ID to prevent React duplicate key errors
+        const uniqueTeacherId = `t-auto-${normalize(teacherName) || Math.random().toString(36).substring(2, 8)}`;
+        
+        matchedTeacher = {
+          id: uniqueTeacherId,
+          name: teacherName,
+          staffId: `G${2000 + idx}`,
+          gender: /binti|a\/p|puan|cik/i.test(teacherName) ? 'P' : 'L',
+          session: sessionRaw.includes('Petang') ? 'Petang' : 'Pagi',
+          grade: 'DG41',
+          phone: '',
+          email: '',
+        };
+        parsedTeachers.push(matchedTeacher);
+        teacherByName.set(matchedTeacher.name.toLowerCase().trim(), matchedTeacher);
+        teacherByName.set(normalize(matchedTeacher.name), matchedTeacher);
+        teacherByName.set(uniqueTeacherId, matchedTeacher);
+      }
+
+      // 2. Match Unit by exact or normalized name or code
+      let matchedUnit = unitByName.get(unitName.toLowerCase());
+      if (!matchedUnit) {
+        const normU = normalize(unitName);
+        matchedUnit = allAvailableUnits.find(u => normalize(u.name) === normU || (u.code && normalize(u.code) === normU));
+      }
+
+      // If unit not in list, auto-create a custom unit so data is NEVER lost!
+      if (!matchedUnit && unitName) {
+        const newUnitId = `u-custom-${Date.now()}-${idx}`;
+        const uNameLower = unitName.toLowerCase();
+        const isHouse = uNameLower.includes('rumah') || ['bendahara', 'temenggung', 'laksamana', 'syahbandar'].some(h => uNameLower.includes(h));
+        const isDev = uNameLower.includes('pembangunan') || uNameLower.includes('khas') || uNameLower.includes('ppki') || uNameLower.includes('pajsk') || uNameLower.includes('inovasi') || uNameLower.includes('rimup') || uNameLower.includes('koperasi');
+        const isUniform = uNameLower.includes('pengakap') || uNameLower.includes('kadet') || uNameLower.includes('pandu puteri') || uNameLower.includes('pbsm') || uNameLower.includes('bsmm') || uNameLower.includes('krs');
+        const isSport = uNameLower.includes('bola') || uNameLower.includes('badminton') || uNameLower.includes('olahraga') || uNameLower.includes('catur') || uNameLower.includes('sukan');
+
+        const autoCategory: UnitCategory = 
+          isHouse ? 'RUMAH_SUKAN' :
+          isUniform ? 'BERUNIFORM' :
+          isDev ? 'PEMBANGUNAN' :
+          isSport ? 'SUKAN' :
+          'KELAB';
+
+        matchedUnit = {
+          id: newUnitId,
+          name: unitName,
+          code: unitName.slice(0, 4).toUpperCase(),
+          category: autoCategory,
+          iconName: 'Sparkles',
+          color: autoCategory === 'BERUNIFORM' ? '#D97706' :
+                 autoCategory === 'KELAB' ? '#059669' :
+                 autoCategory === 'SUKAN' ? '#2563EB' :
+                 autoCategory === 'RUMAH_SUKAN' ? '#DC2626' : '#7C3AED',
+        };
+        parsedUnits.push(matchedUnit);
+        unitByName.set(matchedUnit.name.toLowerCase().trim(), matchedUnit);
+      }
 
       if (matchedTeacher && matchedUnit) {
         let role: RoleType = 'AJK';
-        if (roleRaw.toLowerCase().includes('ketua')) {
+        const roleLower = roleRaw.toLowerCase();
+        if (roleLower.includes('ketua') || roleLower.includes('penasihat utama')) {
           role = 'Ketua Guru Penasihat';
-        } else if (roleRaw.toLowerCase().includes('setiausaha') || roleRaw.toLowerCase().includes('su')) {
+        } else if (roleLower.includes('setiausaha') || roleLower.includes('su') || roleLower.includes('sekretariat')) {
           role = 'Setiausaha';
         }
 
@@ -746,8 +874,21 @@ export function parseRawSheetData(
     });
   }
 
+  // Deduplicate parsedTeachers by ID and normalized name to guarantee unique keys across the application
+  const uniqueTeachersMap = new Map<string, Teacher>();
+  const seenTeacherNames = new Set<string>();
+  parsedTeachers.forEach(t => {
+    if (!t || !t.id) return;
+    const norm = normalize(t.name);
+    if (!uniqueTeachersMap.has(t.id) && !seenTeacherNames.has(norm)) {
+      uniqueTeachersMap.set(t.id, t);
+      seenTeacherNames.add(norm);
+    }
+  });
+  const finalizedTeachers = Array.from(uniqueTeachersMap.values());
+
   return {
-    teachers: parsedTeachers,
+    teachers: finalizedTeachers,
     assignments: parsedAssignments,
     customUnits: parsedUnits.length > 0 ? parsedUnits : undefined,
   };
@@ -781,13 +922,29 @@ export async function fetchPublicGoogleSheet(
     }
   };
 
-  const [rawTeachers, rawUnits, rawAssignments] = await Promise.all([
-    fetchTabCsv('Senarai_Guru'),
-    fetchTabCsv('Senarai_Unit'),
-    fetchTabCsv('Agihan_Kokurikulum'),
-  ]);
+  let rawTeachers = await fetchTabCsv('Senarai_Guru');
+  if (rawTeachers.length <= 1) {
+    rawTeachers = await fetchTabCsv('Senarai Guru');
+  }
+  if (rawTeachers.length <= 1) {
+    rawTeachers = await fetchTabCsv('Guru');
+  }
 
-  let finalAssignments = rawAssignments;
+  let rawUnits = await fetchTabCsv('Senarai_Unit');
+  if (rawUnits.length <= 1) {
+    rawUnits = await fetchTabCsv('Senarai Unit');
+  }
+  if (rawUnits.length <= 1) {
+    rawUnits = await fetchTabCsv('Unit');
+  }
+
+  let finalAssignments = await fetchTabCsv('Agihan_Kokurikulum');
+  if (finalAssignments.length <= 1) {
+    finalAssignments = await fetchTabCsv('Agihan Kokurikulum');
+  }
+  if (finalAssignments.length <= 1) {
+    finalAssignments = await fetchTabCsv('Agihan');
+  }
   if (finalAssignments.length <= 1) {
     finalAssignments = await fetchTabCsv('Sheet1');
   }
@@ -838,62 +995,78 @@ export async function fetchFromGoogleSheet(
 
   // 3. Authenticated Google Sheets API v4 fetch
   try {
-    let rawTeachers: string[][] = [];
-    try {
-      const res = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Senarai_Guru!A1:J300`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        rawTeachers = data.values || [];
-      }
-    } catch (e) {
-      console.warn('Could not read Senarai_Guru sheet', e);
-    }
+    // Pertama, dapatkan metadata helaian untuk menyemak nama tab sebenar yang ada dalam fail pengguna
+    const metaRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties(sheetId,title)`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-    let rawUnits: string[][] = [];
-    try {
-      const res = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Senarai_Unit!A1:H150`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        rawUnits = data.values || [];
-      }
-    } catch (e) {
-      console.warn('Could not read Senarai_Unit sheet', e);
-    }
+    if (metaRes.ok) {
+      const metaData = await metaRes.json();
+      const existingTabs: string[] = (metaData.sheets || []).map((s: { properties?: { title?: string } }) => s.properties?.title || '').filter(Boolean);
 
-    let rawAssignments: string[][] = [];
-    try {
-      const res = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Agihan_Kokurikulum!A1:L500`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        rawAssignments = data.values || [];
-      } else {
-        const resFallback = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/Sheet1!A1:L500`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (resFallback.ok) {
-          const data = await resFallback.json();
-          rawAssignments = data.values || [];
+      // Cari tab yang sepadan dengan guru, unit, agihan, atau guna tab lalai
+      const teacherTab = existingTabs.find(t => /guru|teacher/i.test(t)) || (existingTabs.includes('Senarai_Guru') ? 'Senarai_Guru' : null);
+      const unitTab = existingTabs.find(t => /unit/i.test(t)) || (existingTabs.includes('Senarai_Unit') ? 'Senarai_Unit' : null);
+      const assignTab = existingTabs.find(t => /agihan|assign/i.test(t)) || (existingTabs.includes('Agihan_Kokurikulum') ? 'Agihan_Kokurikulum' : null);
+
+      // Sediakan senarai julat yang hendak dimuat turun
+      const targetRanges: { key: string; range: string }[] = [];
+      if (teacherTab) targetRanges.push({ key: 'teachers', range: `'${teacherTab}'!A1:Z1000` });
+      if (unitTab) targetRanges.push({ key: 'units', range: `'${unitTab}'!A1:Z500` });
+      if (assignTab) targetRanges.push({ key: 'assignments', range: `'${assignTab}'!A1:Z3000` });
+
+      // Jika tiada tab bernama di atas, baca tab pertama (cth: Sheet1 / Helaian1)
+      if (targetRanges.length === 0 && existingTabs.length > 0) {
+        existingTabs.slice(0, 3).forEach((tab, i) => {
+          targetRanges.push({ key: `sheet_${i}`, range: `'${tab}'!A1:Z500` });
+        });
+      }
+
+      if (targetRanges.length > 0) {
+        const rangesQuery = targetRanges.map(r => `ranges=${encodeURIComponent(r.range)}`).join('&');
+        const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values:batchGet?${rangesQuery}`;
+
+        const batchController = new AbortController();
+        const timeoutId = setTimeout(() => batchController.abort(), 8000);
+
+        const batchRes = await fetch(batchUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: batchController.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (batchRes.ok) {
+          const batchData = await batchRes.json();
+          const valueRanges: { range: string; values?: string[][] }[] = batchData.valueRanges || [];
+
+          let rawTeachers: string[][] = [];
+          let rawUnits: string[][] = [];
+          let rawAssignments: string[][] = [];
+
+          targetRanges.forEach((target, index) => {
+            const values = valueRanges[index]?.values || [];
+            if (target.key === 'teachers') rawTeachers = values;
+            else if (target.key === 'units') rawUnits = values;
+            else if (target.key === 'assignments') rawAssignments = values;
+            else {
+              // Jika tab umum (Sheet1 dsb), periksa kandungannya
+              if (rawTeachers.length === 0 && values.some(row => row.some(cell => /nama|guru/i.test(cell)))) {
+                rawTeachers = values;
+              } else if (rawAssignments.length === 0 && values.length > 1) {
+                rawAssignments = values;
+              }
+            }
+          });
+
+          if (rawTeachers.length > 1 || rawAssignments.length > 1) {
+            return parseRawSheetData(rawTeachers, rawUnits, rawAssignments, currentUnits);
+          }
         }
       }
-    } catch (e) {
-      console.warn('Could not read Agihan_Kokurikulum sheet', e);
-    }
-
-    if (rawTeachers.length > 1 || rawAssignments.length > 1) {
-      return parseRawSheetData(rawTeachers, rawUnits, rawAssignments, currentUnits);
     }
   } catch (apiErr) {
-    console.warn('Authenticated Sheets API read failed, attempting public fallback:', apiErr);
+    console.warn('Authenticated Sheets API auto-discover failed, attempting fallback:', apiErr);
   }
 
   // Fallback to public fetch if token failed or tab reading returned empty

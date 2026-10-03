@@ -21,7 +21,11 @@ import {
   RoleType, 
   SessionType, 
   UnitCategory, 
-  ConflictIssue 
+  ConflictIssue,
+  CategoryCoordinator,
+  CoordinatorSessionType,
+  ExecutiveRoleType,
+  ExecutiveLeader
 } from './types/koku';
 import { detectTeacherConflicts, exportMatrixToExcel, isValidTeacherName } from './utils/kokuHelpers';
 import { initAuth } from './services/auth';
@@ -39,9 +43,33 @@ import { AppointmentLetterModal } from './components/AppointmentLetterModal';
 import { EditTeacherModal } from './components/EditTeacherModal';
 import { Trash2, Sparkles, Smartphone } from 'lucide-react';
 
+interface InitialDataShape {
+  teachers?: Teacher[];
+  assignments?: UnitAssignment[];
+  units?: KokuUnit[];
+  settings?: SchoolSettings;
+  sheetId?: string;
+  categoryCoordinators?: CategoryCoordinator[];
+  customRoles?: string[];
+  executiveLeaders?: ExecutiveLeader[];
+}
+
+const getInitialCloudData = (): InitialDataShape | null => {
+  if (typeof window !== 'undefined' && (window as unknown as { __INITIAL_DATA__?: InitialDataShape }).__INITIAL_DATA__) {
+    return (window as unknown as { __INITIAL_DATA__: InitialDataShape }).__INITIAL_DATA__;
+  }
+  return null;
+};
+
 export default function App() {
-  // State from LocalStorage or Defaults
+  const initialData = getInitialCloudData();
+
+  // State from Server Injected Data, LocalStorage, or Defaults
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
+    if (initialData?.teachers && Array.isArray(initialData.teachers) && initialData.teachers.length > 0) {
+      const cleaned = initialData.teachers.filter(t => t && t.name && isValidTeacherName(t.name));
+      if (cleaned.length > 0) return cleaned;
+    }
     const saved = localStorage.getItem('ekoku_teachers');
     if (saved) {
       try {
@@ -58,11 +86,44 @@ export default function App() {
   });
 
   const [units, setUnits] = useState<KokuUnit[]>(() => {
-    const saved = localStorage.getItem('ekoku_units');
-    return saved ? JSON.parse(saved) : DEFAULT_UNITS;
+    let baseUnits = DEFAULT_UNITS;
+    if (initialData?.units && Array.isArray(initialData.units) && initialData.units.length > 0) {
+      baseUnits = initialData.units;
+    } else {
+      const saved = localStorage.getItem('ekoku_units');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            baseUnits = parsed;
+          }
+        } catch (e) {
+          console.warn('Gagal membaca ekoku_units:', e);
+        }
+      }
+    }
+
+    // 1. Sanitasi Mutlak: Pastikan sebarang unit Rumah Sukan TIDAK masuk ke dalam PEMBANGUNAN
+    const sanitized = baseUnits.map(u => {
+      const isHouseUnit = 
+        /rumah\s*(sukan|merah|biru|hijau|kuning|bendahara|temenggung|laksamana|syahbandar)/i.test(u.name) ||
+        ['MERAH', 'HIJAU', 'BIRU', 'KUNING'].includes(u.code) ||
+        /^(r-|rumah-)/i.test(u.id);
+      if (isHouseUnit && u.category === 'PEMBANGUNAN') {
+        return { ...u, category: 'RUMAH_SUKAN' as UnitCategory };
+      }
+      return u;
+    });
+
+    // PENTING: Tiada sebarang senarai unit standard dipaksa untuk PEMBANGUNAN.
+    // GPK Kokurikulum sendiri yang bebas menentukan dan menamakan unit pembangunan mengikut keperluan sekolah.
+    return sanitized;
   });
 
   const [assignments, setAssignments] = useState<UnitAssignment[]>(() => {
+    if (initialData?.assignments && Array.isArray(initialData.assignments) && initialData.assignments.length > 0) {
+      return initialData.assignments;
+    }
     const saved = localStorage.getItem('ekoku_assignments');
     if (saved) {
       try {
@@ -76,6 +137,9 @@ export default function App() {
   });
 
   const [settings, setSettings] = useState<SchoolSettings>(() => {
+    if (initialData?.settings && initialData.settings.schoolName) {
+      return { ...DEFAULT_SCHOOL_SETTINGS, ...initialData.settings };
+    }
     const saved = localStorage.getItem('ekoku_settings');
     return saved ? JSON.parse(saved) : DEFAULT_SCHOOL_SETTINGS;
   });
@@ -90,7 +154,61 @@ export default function App() {
         return cleaned;
       }
     }
+    if (initialData?.sheetId) {
+      return initialData.sheetId;
+    }
     return localStorage.getItem('ekoku_sheet_id') || '';
+  });
+
+  // Penyelaras Kategori Unit Besar (Unit Beruniform, Kelab, Sukan, Rumah Sukan)
+  const [categoryCoordinators, setCategoryCoordinators] = useState<CategoryCoordinator[]>(() => {
+    if (initialData?.categoryCoordinators && Array.isArray(initialData.categoryCoordinators)) {
+      return initialData.categoryCoordinators;
+    }
+    const saved = localStorage.getItem('ekoku_category_coordinators');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.warn('Gagal membaca category_coordinators tempatan:', e);
+      }
+    }
+    return [];
+  });
+
+  // Jawatan Guru Tersuai Sistem (Selain jawatan standard seperti Ketua, Jurulatih, Pengurus, Ketua Panitia)
+  const [customRoles, setCustomRoles] = useState<string[]>(() => {
+    if (initialData?.customRoles && Array.isArray(initialData.customRoles)) {
+      return initialData.customRoles;
+    }
+    const saved = localStorage.getItem('ekoku_custom_roles');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.warn('Gagal membaca custom_roles tempatan:', e);
+      }
+    }
+    return [];
+  });
+
+  // Kepimpinan Eksekutif Kokurikulum Sekolah (SU Kokurikulum, Naib SU Kokurikulum, SU Sukan, Naib SU Sukan)
+  const [executiveLeaders, setExecutiveLeaders] = useState<ExecutiveLeader[]>(() => {
+    if (initialData?.executiveLeaders && Array.isArray(initialData.executiveLeaders)) {
+      return initialData.executiveLeaders;
+    }
+    const saved = localStorage.getItem('ekoku_executive_leaders');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        console.warn('Gagal membaca executive_leaders tempatan:', e);
+      }
+    }
+    return [];
   });
 
   // Active view tab
@@ -110,6 +228,7 @@ export default function App() {
   // Modals state
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
   const [isGoogleSheetModalOpen, setIsGoogleSheetModalOpen] = useState(false);
+  const [googleSheetInitialTab, setGoogleSheetInitialTab] = useState<'qr' | 'sheet' | 'help'>('sheet');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isAppointmentLetterOpen, setIsAppointmentLetterOpen] = useState(false);
@@ -142,6 +261,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('ekoku_assignments', JSON.stringify(assignments));
   }, [assignments]);
+
+  useEffect(() => {
+    localStorage.setItem('ekoku_category_coordinators', JSON.stringify(categoryCoordinators));
+  }, [categoryCoordinators]);
+
+  useEffect(() => {
+    localStorage.setItem('ekoku_custom_roles', JSON.stringify(customRoles));
+  }, [customRoles]);
+
+  useEffect(() => {
+    localStorage.setItem('ekoku_executive_leaders', JSON.stringify(executiveLeaders));
+  }, [executiveLeaders]);
 
   useEffect(() => {
     localStorage.setItem('ekoku_settings', JSON.stringify(settings));
@@ -177,6 +308,7 @@ export default function App() {
   }, []);
 
   // 1. Initial Mount: Load Shared Cloud Database across devices
+  const hasLoadedFromCloudRef = useRef(false);
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -185,9 +317,17 @@ export default function App() {
         if (res.ok) {
           const json = await res.json();
           if (json.exists && json.data && isMounted) {
-            const { teachers: cloudTeachers, assignments: cloudAssignments, units: cloudUnits, settings: cloudSettings, sheetId: cloudSheetId } = json.data;
+            const { 
+              teachers: cloudTeachers, 
+              assignments: cloudAssignments, 
+              units: cloudUnits, 
+              settings: cloudSettings, 
+              sheetId: cloudSheetId,
+              categoryCoordinators: cloudCoords,
+              customRoles: cloudRoles,
+              executiveLeaders: cloudExecs
+            } = json.data;
             if (Array.isArray(cloudTeachers) && cloudTeachers.length > 0) {
-              // Sanitize teachers: ignore dummy IDs or non-teacher names that got misplaced
               const cleanTeachers = cloudTeachers.filter(t => t && t.name && isValidTeacherName(t.name));
               if (cleanTeachers.length > 0) {
                 setTeachers(cleanTeachers);
@@ -199,6 +339,15 @@ export default function App() {
             if (Array.isArray(cloudUnits) && cloudUnits.length > 0) {
               setUnits(cloudUnits);
             }
+            if (Array.isArray(cloudCoords)) {
+              setCategoryCoordinators(cloudCoords);
+            }
+            if (Array.isArray(cloudRoles)) {
+              setCustomRoles(cloudRoles);
+            }
+            if (Array.isArray(cloudExecs)) {
+              setExecutiveLeaders(cloudExecs);
+            }
             if (cloudSettings) {
               setSettings(prev => ({ ...prev, ...cloudSettings }));
             }
@@ -209,6 +358,8 @@ export default function App() {
         }
       } catch (err) {
         console.warn('Gagal memuat turun data dari pelayan awan:', err);
+      } finally {
+        hasLoadedFromCloudRef.current = true;
       }
     })();
     return () => {
@@ -218,7 +369,19 @@ export default function App() {
 
   // 2. Debounced save to shared cloud database whenever data changes
   const cloudSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isCloudDataHydratedRef = useRef(false);
+
   useEffect(() => {
+    // Jangan simpan data sebelum pangkalan data awan selesai dimuat turun
+    if (!hasLoadedFromCloudRef.current) {
+      return;
+    }
+    // Langkau kitaran simpanan pertama sebaik sahaja muat turun awan selesai untuk mengelakkan peranti baharu menimpa data
+    if (!isCloudDataHydratedRef.current) {
+      isCloudDataHydratedRef.current = true;
+      return;
+    }
+
     if (cloudSaveTimerRef.current) {
       clearTimeout(cloudSaveTimerRef.current);
     }
@@ -233,6 +396,9 @@ export default function App() {
             units,
             settings,
             sheetId,
+            categoryCoordinators,
+            customRoles,
+            executiveLeaders,
           }),
         });
       } catch (err) {
@@ -243,7 +409,7 @@ export default function App() {
     return () => {
       if (cloudSaveTimerRef.current) clearTimeout(cloudSaveTimerRef.current);
     };
-  }, [teachers, assignments, units, settings, sheetId]);
+  }, [teachers, assignments, units, settings, sheetId, categoryCoordinators, customRoles, executiveLeaders]);
 
   // Multi-device synchronization:
   // If user opens a shared link (?sheet=...) or this device has sheetId, load from Google Sheet!
@@ -348,6 +514,65 @@ export default function App() {
     }
   };
 
+  // Refresh / Pull data directly from Google Sheet into App
+  const handleRefreshFromSheet = async () => {
+    if (!sheetId) {
+      setIsGoogleSheetModalOpen(true);
+      return;
+    }
+    setIsSyncing(true);
+    showToast('Sedang memuat turun perubahan terkini dari Google Sheet...', 'info');
+    try {
+      const data = await fetchFromGoogleSheet(sheetId, units);
+      if (data.teachers.length > 0 || data.assignments.length > 0) {
+        if (data.teachers.length > 0) {
+          setTeachers(data.teachers);
+        }
+        if (Array.isArray(data.assignments)) {
+          setAssignments([...data.assignments]);
+        }
+        if (data.customUnits && data.customUnits.length > 0) {
+          setUnits(prev => {
+            const prevMap = new Map(prev.map(u => [u.id, u]));
+            data.customUnits!.forEach(u => prevMap.set(u.id, u));
+            return Array.from(prevMap.values());
+          });
+        }
+        if (data.schoolSettings) {
+          setSettings(prev => ({ ...prev, ...data.schoolSettings }));
+        }
+
+        // Also persist to cloud-database for cross-device consistency
+        fetch('/api/cloud-database', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            teachers: data.teachers,
+            assignments: data.assignments,
+            units: data.customUnits || units,
+            settings: data.schoolSettings || settings,
+            sheetId,
+          }),
+        }).catch(() => {});
+
+        showToast(`Berjaya! Data dikemaskini dari Google Sheet (${data.teachers.length} guru, ${data.assignments.length} agihan).`, 'success');
+      } else {
+        showToast('Google Sheet tersambung, tetapi tiada rekod guru atau agihan ditemui.', 'warning');
+      }
+    } catch (err: unknown) {
+      console.warn('Refresh dari Google Sheet gagal:', err);
+      const msg = err instanceof Error ? err.message : 'Ralat semasa memuat turun dari Google Sheet';
+      if (msg.includes('AUTH_EXPIRED') || msg.includes('401')) {
+        showToast('Sesi Google tamat tempoh. Sila sambung semula akaun Google.', 'warning');
+        setIsGoogleSheetModalOpen(true);
+      } else {
+        showToast(msg, 'warning');
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Compute Conflicts in real-time
   const conflicts: ConflictIssue[] = useMemo(() => {
     return detectTeacherConflicts(teachers, assignments, units);
@@ -428,7 +653,84 @@ export default function App() {
   const handleDeleteTeacher = (teacherId: string) => {
     setTeachers(prev => prev.filter(t => t.id !== teacherId));
     setAssignments(prev => prev.filter(a => a.teacherId !== teacherId));
+    setCategoryCoordinators(prev => prev.filter(c => c.teacherId !== teacherId));
+    setExecutiveLeaders(prev => prev.filter(l => l.teacherId !== teacherId));
     showToast('Guru telah dipadam daripada senarai sekolah.', 'info');
+  };
+
+  // Handler: Lantik / Kemaskini Jawatan Eksekutif (Setiausaha Kokurikulum, Naib SU, SU Sukan, Naib SU Sukan)
+  const handleSetExecutiveLeader = (
+    role: ExecutiveRoleType,
+    teacherId: string,
+    session: CoordinatorSessionType,
+    leaderIdToEdit?: string
+  ) => {
+    setExecutiveLeaders(prev => {
+      let filtered = prev;
+      if (leaderIdToEdit) {
+        filtered = prev.filter(l => l.id !== leaderIdToEdit);
+      } else {
+        // Gantikan jika jawatan & sesi yang sama sudah wujud, atau jika guru yang sama dilantik semula
+        filtered = prev.filter(l => !(l.role === role && (l.session === session || l.teacherId === teacherId)));
+      }
+      const newLeader: ExecutiveLeader = {
+        id: leaderIdToEdit || `exec_${role.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}`,
+        role,
+        teacherId,
+        session,
+        appointedAt: new Date().toISOString(),
+      };
+      return [...filtered, newLeader];
+    });
+    const teacher = teachers.find(t => t.id === teacherId);
+    showToast(`Berjaya melantik Cikgu ${teacher?.name || 'Guru'} sebagai ${role} (${session})!`, 'success');
+  };
+
+  // Handler: Gugurkan Jawatan Eksekutif
+  const handleRemoveExecutiveLeader = (leaderId: string) => {
+    const leader = executiveLeaders.find(l => l.id === leaderId);
+    const teacher = leader ? teachers.find(t => t.id === leader.teacherId) : null;
+    setExecutiveLeaders(prev => prev.filter(l => l.id !== leaderId));
+    showToast(`Jawatan ${leader?.role || 'Eksekutif'} bagi Cikgu ${teacher?.name || 'Guru'} telah digugurkan.`, 'info');
+  };
+
+  // Handler: Lantik Penyelaras Unit Besar (Unit Beruniform, Kelab, Sukan, Rumah Sukan)
+  const handleAddCategoryCoordinator = (
+    category: UnitCategory,
+    teacherId: string,
+    session: CoordinatorSessionType,
+    roleTitle?: string
+  ) => {
+    const newCoord: CategoryCoordinator = {
+      id: `coord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      category,
+      teacherId,
+      session,
+      roleTitle: roleTitle?.trim() || 'Penyelaras',
+      appointedAt: new Date().toISOString(),
+    };
+    setCategoryCoordinators(prev => [...prev, newCoord]);
+    const teacher = teachers.find(t => t.id === teacherId);
+    showToast(`Berjaya melantik Cikgu ${teacher?.name || 'Guru'} sebagai Penyelaras ${category} (${session})!`, 'success');
+  };
+
+  // Handler: Gugurkan Penyelaras Unit Besar
+  const handleRemoveCategoryCoordinator = (coordId: string) => {
+    const coord = categoryCoordinators.find(c => c.id === coordId);
+    const teacher = coord ? teachers.find(t => t.id === coord.teacherId) : null;
+    setCategoryCoordinators(prev => prev.filter(c => c.id !== coordId));
+    showToast(`Jawatan Penyelaras bagi Cikgu ${teacher?.name || 'Guru'} telah digugurkan.`, 'info');
+  };
+
+  // Handler: Tambah Jawatan Tersuai Baharu ke Sistem
+  const handleAddCustomRole = (newRole: string) => {
+    const trimmed = newRole.trim();
+    if (!trimmed) return;
+    setCustomRoles(prev => {
+      if (prev.includes(trimmed)) return prev;
+      return [...prev, trimmed];
+    });
+    showToast(`Jawatan baharu "${trimmed}" telah ditambah ke dalam senarai sistem.`, 'success');
   };
 
   // Handler: Import teachers from Excel
@@ -468,7 +770,7 @@ export default function App() {
 
   // Handler: Export to Excel
   const handleExportExcel = () => {
-    exportMatrixToExcel(teachers, units, assignments, settings.schoolName, settings.academicYear);
+    exportMatrixToExcel(teachers, units, assignments, settings.schoolName, settings.academicYear, categoryCoordinators, executiveLeaders);
     showToast('Fail Excel agihan kokurikulum berjaya dimuat turun.');
   };
 
@@ -480,8 +782,12 @@ export default function App() {
   const handleConfirmClearAll = async () => {
     setTeachers([]);
     setAssignments([]);
+    setCategoryCoordinators([]);
+    setExecutiveLeaders([]);
     localStorage.removeItem('ekoku_teachers');
     localStorage.removeItem('ekoku_assignments');
+    localStorage.removeItem('ekoku_category_coordinators');
+    localStorage.removeItem('ekoku_executive_leaders');
     
     // Also remove redundant cloud database records
     try {
@@ -494,6 +800,9 @@ export default function App() {
           units,
           settings,
           sheetId: '',
+          categoryCoordinators: [],
+          customRoles,
+          executiveLeaders: [],
         }),
       });
     } catch (e) {
@@ -513,11 +822,15 @@ export default function App() {
     setTeachers(SAMPLE_TEACHERS);
     setAssignments(SAMPLE_ASSIGNMENTS);
     setUnits(DEFAULT_UNITS);
+    setCategoryCoordinators([]);
+    setExecutiveLeaders([]);
+    localStorage.removeItem('ekoku_category_coordinators');
+    localStorage.removeItem('ekoku_executive_leaders');
     setIsResetConfirmOpen(false);
     showToast('Data contoh berjaya dimuatkan semula ke dalam sistem.');
   };
 
-  // Buang semua data yang bukan nama guru (ID rujukan, nombor, baris kosong)
+  // Buang semua data yang bukan nama guru (ID rujukan, nombor, baris kosong, tajuk)
   const handleCleanInvalidData = () => {
     const valid = teachers.filter(t => t && t.name && isValidTeacherName(t.name));
     const validIds = new Set(valid.map(t => t.id));
@@ -525,8 +838,52 @@ export default function App() {
     const removedCount = teachers.length - valid.length;
     setTeachers(valid);
     setAssignments(validAssigns);
-    showToast(`Pembersihan selesai! ${removedCount > 0 ? `${removedCount} rekod bukan nama guru telah dibuang.` : 'Semua rekod guru adalah sah.'}`);
+
+    // Kemaskini juga ke pelayan awan
+    fetch('/api/cloud-database', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        teachers: valid,
+        assignments: validAssigns,
+        units,
+        settings,
+        sheetId,
+      }),
+    }).catch(() => {});
+
+    showToast(`Pembersihan selesai! ${removedCount > 0 ? `${removedCount} rekod bukan nama guru telah disingkirkan.` : 'Semua rekod guru dalam jadual adalah sah.'}`);
   };
+
+  // Jalankan pembersihan automatik sekali pada peringkat awal jika terdapat data bukan guru atau ID berganda
+  useEffect(() => {
+    // 1. Singkirkan rekod bukan guru
+    const valid = teachers.filter(t => t && t.name && isValidTeacherName(t.name));
+    
+    // 2. Singkirkan ID pendua jika wujud (Pastikan setiap guru ada ID unik)
+    const seenIds = new Set<string>();
+    const deduplicated: Teacher[] = [];
+    let hadDuplicates = false;
+
+    valid.forEach(t => {
+      if (!seenIds.has(t.id)) {
+        seenIds.add(t.id);
+        deduplicated.push(t);
+      } else {
+        hadDuplicates = true;
+        const newUniqueId = `t-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        seenIds.add(newUniqueId);
+        deduplicated.push({ ...t, id: newUniqueId });
+      }
+    });
+
+    if (hadDuplicates || valid.length !== teachers.length) {
+      const validIds = new Set(deduplicated.map(t => t.id));
+      const validAssigns = assignments.filter(a => validIds.has(a.teacherId));
+      setTeachers(deduplicated);
+      setAssignments(validAssigns);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50/40 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans relative selection:bg-emerald-500 selection:text-white">
@@ -546,7 +903,14 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenConflicts={() => setIsConflictModalOpen(true)}
-        onOpenGoogleSheet={() => setIsGoogleSheetModalOpen(true)}
+        onOpenGoogleSheet={() => {
+          setGoogleSheetInitialTab('sheet');
+          setIsGoogleSheetModalOpen(true);
+        }}
+        onOpenQr={() => {
+          setGoogleSheetInitialTab('qr');
+          setIsGoogleSheetModalOpen(true);
+        }}
         onOpenImport={() => setIsImportModalOpen(true)}
         onExportExcel={handleExportExcel}
         onOpenPrint={() => setIsPrintModalOpen(true)}
@@ -556,6 +920,7 @@ export default function App() {
         syncStatus={syncStatus}
         lastSyncTime={lastSyncTime}
         onManualSyncNow={handleManualSyncNow}
+        onRefreshFromSheet={handleRefreshFromSheet}
         onClearAllData={handleClearAllData}
         onResetToSample={handleResetToSample}
         onCleanInvalidData={handleCleanInvalidData}
@@ -580,7 +945,7 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
         {/* Multi-Device / Smartphone Sync Helper Banner */}
         {!sheetId && (
-          <div className="mb-4 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-3 text-xs">
+          <div className="mb-4 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-200 dark:border-emerald-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                 <Smartphone className="w-4 h-4" />
@@ -590,17 +955,32 @@ export default function App() {
                   Buka di telefon atau peranti lain?
                 </span>
                 <span className="text-slate-600 dark:text-slate-400 text-[11px]">
-                  Sambungkan Google Sheet sekolah atau imbas Kod QR untuk memuatkan data guru &amp; unit kokurikulum ke telefon anda.
+                  Imbas Kod QR atau sambungkan Google Sheet sekolah untuk membuka data kokurikulum di telefon anda tanpa kehilangan sebarang rekod.
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsGoogleSheetModalOpen(true)}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shrink-0 shadow-xs cursor-pointer transition-colors"
-            >
-              Sambung Sheet / Kod QR
-            </button>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setGoogleSheetInitialTab('qr');
+                  setIsGoogleSheetModalOpen(true);
+                }}
+                className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl font-bold text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <span>📱 Imbas Telefon</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGoogleSheetInitialTab('sheet');
+                  setIsGoogleSheetModalOpen(true);
+                }}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs cursor-pointer transition-colors"
+              >
+                <span>Sambung Sheet</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -611,6 +991,12 @@ export default function App() {
             units={units}
             assignments={assignments}
             conflicts={conflicts}
+            categoryCoordinators={categoryCoordinators}
+            executiveLeaders={executiveLeaders}
+            onSetExecutiveLeader={handleSetExecutiveLeader}
+            onRemoveExecutiveLeader={handleRemoveExecutiveLeader}
+            customRoles={customRoles}
+            onAddCustomRole={handleAddCustomRole}
             onAddTeacher={() => {
               setTeacherToEdit(null);
               setIsEditTeacherModalOpen(true);
@@ -632,6 +1018,7 @@ export default function App() {
             }}
             filterConflictTeacherId={filterConflictTeacherId}
             onClearConflictFilter={() => setFilterConflictTeacherId(null)}
+            onCleanInvalidData={handleCleanInvalidData}
           />
         )}
 
@@ -647,6 +1034,11 @@ export default function App() {
             teachers={teachers}
             assignments={assignments}
             conflicts={conflicts}
+            categoryCoordinators={categoryCoordinators}
+            onAddCategoryCoordinator={handleAddCategoryCoordinator}
+            onRemoveCategoryCoordinator={handleRemoveCategoryCoordinator}
+            customRoles={customRoles}
+            onAddCustomRole={handleAddCustomRole}
             onAssignTeacher={handleAssignTeacher}
             onUpdateRole={handleUpdateRole}
             onUpdateSession={handleUpdateSession}
@@ -728,6 +1120,7 @@ export default function App() {
       <GoogleSheetSyncModal
         isOpen={isGoogleSheetModalOpen}
         onClose={() => setIsGoogleSheetModalOpen(false)}
+        initialTab={googleSheetInitialTab}
         googleUser={googleUser}
         onUserChange={setGoogleUser}
         sheetId={sheetId}
@@ -736,6 +1129,9 @@ export default function App() {
         units={units}
         assignments={assignments}
         schoolSettings={settings}
+        categoryCoordinators={categoryCoordinators}
+        executiveLeaders={executiveLeaders}
+        customRoles={customRoles}
         lastSyncTime={lastSyncTime}
         autoSyncEnabled={autoSyncEnabled}
         onToggleAutoSync={setAutoSyncEnabled}
@@ -746,8 +1142,9 @@ export default function App() {
           if (newTeachers && newTeachers.length > 0) {
             setTeachers(newTeachers);
           }
-          if (newAssignments && newAssignments.length > 0) {
-            setAssignments(newAssignments);
+          // Sentiasa kemas kini senarai agihan walaupun berkurang atau bertukar
+          if (Array.isArray(newAssignments)) {
+            setAssignments([...newAssignments]);
           }
           if (newCustomUnits && newCustomUnits.length > 0) {
             setUnits(prev => {
@@ -789,6 +1186,8 @@ export default function App() {
         units={units}
         assignments={assignments}
         settings={settings}
+        executiveLeaders={executiveLeaders}
+        categoryCoordinators={categoryCoordinators}
         onSelectTeacher={t => setTeacherForLetter(t)}
       />
 

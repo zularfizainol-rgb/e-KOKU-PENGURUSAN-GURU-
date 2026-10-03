@@ -24,8 +24,9 @@ import {
 import { User } from 'firebase/auth';
 import { googleSignIn, logout, isUserCancelledAuthError, parseAuthError, getAccessToken } from '../services/auth';
 import { createNewSpreadsheet, saveAllToGoogleSheet, fetchFromGoogleSheet, extractSheetId, isAppsScriptUrl, GOOGLE_APPS_SCRIPT_TEMPLATE } from '../services/googleSheets';
-import { Teacher, KokuUnit, UnitAssignment, SchoolSettings } from '../types/koku';
+import { Teacher, KokuUnit, UnitAssignment, SchoolSettings, CategoryCoordinator, ExecutiveLeader } from '../types/koku';
 import { exportMatrixToExcel } from '../utils/kokuHelpers';
+import QRCode from 'qrcode';
 
 interface GoogleSheetSyncModalProps {
   isOpen: boolean;
@@ -38,6 +39,10 @@ interface GoogleSheetSyncModalProps {
   units: KokuUnit[];
   assignments: UnitAssignment[];
   schoolSettings: SchoolSettings;
+  categoryCoordinators?: CategoryCoordinator[];
+  executiveLeaders?: ExecutiveLeader[];
+  customRoles?: string[];
+  initialTab?: 'qr' | 'sheet' | 'help';
   onImportSheetData: (teachers: Teacher[], assignments: UnitAssignment[], customUnits?: KokuUnit[]) => void;
   lastSyncTime?: string | null;
   autoSyncEnabled: boolean;
@@ -58,6 +63,10 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   units,
   assignments,
   schoolSettings,
+  categoryCoordinators,
+  executiveLeaders,
+  customRoles,
+  initialTab = 'sheet',
   onImportSheetData,
   lastSyncTime,
   autoSyncEnabled,
@@ -65,7 +74,7 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   isSyncing,
   onClearAllData,
 }) => {
-  const [activeTab, setActiveTab] = useState<'qr' | 'sheet' | 'help'>('sheet');
+  const [activeTab, setActiveTab] = useState<'qr' | 'sheet' | 'help'>(initialTab);
   const [inputSheetId, setInputSheetId] = useState(sheetId || '');
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -76,6 +85,14 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   const [copiedShareUrl, setCopiedShareUrl] = useState(false);
   const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
   const [copiedAppsScript, setCopiedAppsScript] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+
+  // Set active tab if initialTab changes or modal opens
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   // Sync internal input when parent sheetId changes
   useEffect(() => {
@@ -83,6 +100,13 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       setInputSheetId(sheetId);
     }
   }, [sheetId]);
+
+  // Flush cloud database whenever QR tab is opened so phone gets immediate fresh data
+  useEffect(() => {
+    if (isOpen && activeTab === 'qr') {
+      flushCloudDatabase();
+    }
+  }, [isOpen, activeTab]);
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -94,34 +118,112 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
   const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const cleanCurrentSheetId = extractSheetId(inputSheetId || sheetId);
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${window.location.pathname}${cleanCurrentSheetId ? `?sheet=${encodeURIComponent(cleanCurrentSheetId)}` : ''}`
     : '';
 
-  const handleCopyHostname = () => {
-    if (navigator.clipboard && currentHostname) {
-      navigator.clipboard.writeText(currentHostname);
-      setCopiedDomain(true);
-      setTimeout(() => setCopiedDomain(false), 2500);
+  // Jana Kod QR tempatan beresolusi tinggi tanpa kebergantungan luar
+  useEffect(() => {
+    if (shareUrl) {
+      QRCode.toDataURL(shareUrl, {
+        width: 320,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff',
+        },
+      })
+        .then(url => setQrCodeDataUrl(url))
+        .catch(err => {
+          console.warn('QR Code generation fallback:', err);
+          setQrCodeDataUrl('');
+        });
+    }
+  }, [shareUrl]);
+
+  // Salin ke papan keratan (bulletproof fallback untuk semua peranti & pelayar)
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    if (!text) return false;
+    let ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch {
+      // fallback
+    }
+    if (!ok) {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch (e) {
+        console.warn('Fallback copy failed:', e);
+      }
+    }
+    return ok;
+  };
+
+  const handleCopyHostname = async () => {
+    if (currentHostname) {
+      const ok = await copyToClipboard(currentHostname);
+      if (ok) {
+        setCopiedDomain(true);
+        setTimeout(() => setCopiedDomain(false), 2500);
+      }
     }
   };
 
-  const handleCopyShareUrl = () => {
-    if (!shareUrl) return;
-    navigator.clipboard.writeText(shareUrl);
-    setCopiedShareUrl(true);
-    setTimeout(() => setCopiedShareUrl(false), 2500);
+  const flushCloudDatabase = () => {
+    try {
+      fetch('/api/cloud-database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teachers,
+          assignments,
+          units,
+          settings: schoolSettings,
+          sheetId: cleanCurrentSheetId || sheetId,
+          categoryCoordinators: categoryCoordinators || [],
+          executiveLeaders: executiveLeaders || [],
+          customRoles: customRoles || [],
+        }),
+      }).catch(err => console.warn('Penyegerakan pangkalan data awan:', err));
+    } catch {
+      // Abaikan jika luar talian
+    }
   };
 
-  const handleCopyAppsScript = () => {
-    navigator.clipboard.writeText(GOOGLE_APPS_SCRIPT_TEMPLATE);
-    setCopiedAppsScript(true);
-    setTimeout(() => setCopiedAppsScript(false), 2500);
+  const handleCopyShareUrl = async () => {
+    if (!shareUrl) return;
+    flushCloudDatabase();
+    const ok = await copyToClipboard(shareUrl);
+    if (ok) {
+      setCopiedShareUrl(true);
+      setTimeout(() => setCopiedShareUrl(false), 2500);
+    }
   };
+
+  const handleCopyAppsScript = async () => {
+    const ok = await copyToClipboard(GOOGLE_APPS_SCRIPT_TEMPLATE);
+    if (ok) {
+      setCopiedAppsScript(true);
+      setTimeout(() => setCopiedAppsScript(false), 2500);
+    }
+  };
+
+  if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -397,7 +499,7 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       } else {
         setStatusMessage({
           type: 'info',
-          text: 'Google Sheet tersambung, tetapi helaian masih kosong.'
+          text: 'Google Sheet tersambung, tetapi fail tersebut belum mempunyai data guru atau agihan. Jika ini fail baharu, sila klik "Simpan ke Sheet" (butang hijau di sebelah) untuk memindahkan data sekolah ke fail Google Sheet anda.'
         });
       }
     } catch (err: unknown) {
@@ -731,50 +833,116 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
 
             {/* TAB 2: MULTI-DEVICE & SMARTPHONE QR CODE */}
             {activeTab === 'qr' && (
-              <div className="space-y-3 text-center">
-                <div className="bg-emerald-50/60 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 text-left">
-                  <span className="font-bold text-emerald-900 dark:text-emerald-200 block mb-0.5 text-xs">
-                    📱 Cara Buka di Telefon Pintar Anda:
+              <div className="space-y-3.5 text-center">
+                {/* Status Ringkasan Data Sekolah */}
+                <div className="p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-left text-xs">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="font-black text-emerald-950 dark:text-emerald-200 text-xs sm:text-sm truncate">
+                      🏫 {schoolSettings.schoolName || 'SEKOLAH SAYA'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 shrink-0">
+                      Sesi {schoolSettings.academicYear || '2026/2027'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-slate-600 dark:text-slate-300 font-semibold flex-wrap">
+                    <span>👥 <b>{teachers.length}</b> Orang Guru</span>
+                    <span>•</span>
+                    <span>📋 <b>{assignments.length}</b> Agihan Unit</span>
+                    <span>•</span>
+                    <span className="text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
+                      {cleanCurrentSheetId ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Google Sheet Aktif</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                          <span>Pangkalan Data Awan</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Panduan Buka di Telefon */}
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-left">
+                  <span className="font-bold text-slate-900 dark:text-white block mb-1 text-xs flex items-center gap-1.5">
+                    <span>📱</span> Cara Buka di Telefon Pintar &amp; Peranti Lain:
                   </span>
                   <ol className="text-[11px] text-slate-600 dark:text-slate-300 list-decimal list-inside space-y-1">
                     <li>Buka kamera telefon anda dan halakan ke <b>Kod QR</b> di bawah.</li>
-                    <li>Tekan notifikasi pautan yang muncul di telefon.</li>
-                    <li>Sistem terus dibuka dengan data kokurikulum sekolah anda!</li>
+                    <li>Tekan notifikasi pautan yang muncul pada skrin kamera telefon.</li>
+                    <li>Aplikasi dibuka serta-merta dengan jadual dan agihan kokurikulum sekolah anda tanpa kehilangan data!</li>
                   </ol>
                 </div>
 
-                {/* QR Code Image */}
-                <div className="flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(shareUrl)}`}
-                    alt="Kod QR e-KOKU GPK"
-                    className="w-36 h-36 rounded-xl border border-slate-200 dark:border-slate-700 p-1 bg-white"
-                  />
-                  <span className="text-[10px] text-slate-500 mt-2 font-mono truncate max-w-[260px]">
-                    {cleanCurrentSheetId ? `Sheet ID: ${cleanCurrentSheetId}` : 'Pangkalan Data Awan'}
+                {/* Panduan Khas Jika Diuji di Localhost Komputer */}
+                {(currentHostname === 'localhost' || currentHostname === '127.0.0.1') && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-300 dark:border-amber-700/60 text-left text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span>💡</span>
+                      <span>Nota Pengujian Tempatan (Localhost):</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                      Anda kini membuka aplikasi ini di <code>localhost</code> komputer anda. Kamera telefon tidak dapat mengakses perkataan <i>localhost</i> secara terus melainkan anda menyambungkan <b>Google Sheet</b> di tab sebelah, atau aplikasi ini di-deploy ke pelayan web awan (cth: Vercel / Cloud Run / Firebase / Domain sekolah). <b>Sebaik sahaja di-deploy atau dipautkan Google Sheet</b>, imbasan telefon akan terus berfungsi 100% lancar dari mana-mana lokasi.
+                    </p>
+                  </div>
+                )}
+
+                {/* QR Code Image (Dijana Tempatan 100% Pantas & Stabil) */}
+                <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm max-w-[280px] mx-auto">
+                  {qrCodeDataUrl ? (
+                    <img
+                      src={qrCodeDataUrl}
+                      alt="Kod QR e-KOKU GPK"
+                      className="w-44 h-44 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-1 bg-white shadow-xs"
+                    />
+                  ) : (
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}`}
+                      alt="Kod QR e-KOKU GPK"
+                      className="w-44 h-44 rounded-2xl border-2 border-slate-200 dark:border-slate-700 p-1 bg-white shadow-xs"
+                    />
+                  )}
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-mono truncate max-w-[240px]">
+                    {cleanCurrentSheetId ? `Sheet ID: ${cleanCurrentSheetId.slice(0, 16)}...` : 'Penyegerakan Awan e-KOKU'}
                   </span>
                 </div>
 
                 {/* Direct Share Link & Copy Button */}
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    readOnly
-                    value={shareUrl}
-                    className="flex-1 px-2.5 py-1.5 text-[11px] font-mono bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-300 select-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCopyShareUrl}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shrink-0 shadow-xs cursor-pointer transition-colors"
-                  >
-                    {copiedShareUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedShareUrl ? 'Disalin!' : 'Salin Pautan'}</span>
-                  </button>
+                <div className="space-y-1.5 text-left">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                    Pautan Langsung Aplikasi:
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      readOnly
+                      value={shareUrl}
+                      className="flex-1 px-3 py-2 text-[11px] font-mono bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-300 select-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopyShareUrl}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer transition-all active:scale-95"
+                    >
+                      {copiedShareUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedShareUrl ? 'Pautan Disalin!' : 'Salin Pautan'}</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    💡 <b>Tip:</b> Tekan <i>Salin Pautan</i> dan hantar ke WhatsApp atau Telegram untuk dibuka terus di telefon guru-guru lain.
+                  </p>
                 </div>
-                <p className="text-[10px] text-slate-400">
-                  Tip: Salin pautan ini dan hantar ke WhatsApp/Telegram untuk dibuka terus di telefon.
-                </p>
+
+                {/* Info Untuk GPK Sekolah Lain */}
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800/60 text-left text-xs text-amber-900 dark:text-amber-200">
+                  <span className="font-black block mb-0.5">ℹ️ Untuk Kegunaan GPK Sekolah Lain:</span>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                    Sistem ini direka khas untuk memudahkan mana-mana sekolah di seluruh Malaysia. GPK sekolah lain hanya perlu mengisi nama sekolah di menu <b>Tetapan Sekolah</b> dan memautkan Google Sheet sekolah masing-masing untuk menyimpan rekod data secara berasingan dan selamat.
+                  </p>
+                </div>
               </div>
             )}
 
