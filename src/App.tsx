@@ -328,6 +328,37 @@ export default function App() {
     };
   }, []);
 
+  // Cross-tab real-time sync when user edits in another tab or window
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ekoku_settings' && e.newValue) {
+        try {
+          const s = JSON.parse(e.newValue);
+          setSettings(prev => ({
+            ...prev,
+            ...s,
+            schoolLogo: s.schoolLogo || s.schoolLogoUrl || prev.schoolLogo,
+            schoolLogoUrl: s.schoolLogo || s.schoolLogoUrl || prev.schoolLogoUrl,
+          }));
+        } catch {}
+      }
+      if (e.key === 'ekoku_teachers' && e.newValue) {
+        try {
+          const t = JSON.parse(e.newValue);
+          if (Array.isArray(t) && t.length > 0) setTeachers(t);
+        } catch {}
+      }
+      if (e.key === 'ekoku_assignments' && e.newValue) {
+        try {
+          const a = JSON.parse(e.newValue);
+          if (Array.isArray(a)) setAssignments(a);
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   // 1. Initial Mount: Load Shared Cloud Database across devices
   const hasLoadedFromCloudRef = useRef(false);
   useEffect(() => {
@@ -352,31 +383,41 @@ export default function App() {
               const cleanTeachers = cloudTeachers.filter(t => t && t.name && isValidTeacherName(t.name));
               if (cleanTeachers.length > 0) {
                 setTeachers(cleanTeachers);
+                try { localStorage.setItem('ekoku_teachers', JSON.stringify(cleanTeachers)); } catch {}
               }
             }
             if (Array.isArray(cloudAssignments) && cloudAssignments.length > 0) {
               setAssignments(cloudAssignments);
+              try { localStorage.setItem('ekoku_assignments', JSON.stringify(cloudAssignments)); } catch {}
             }
             if (Array.isArray(cloudUnits) && cloudUnits.length > 0) {
               setUnits(cloudUnits);
+              try { localStorage.setItem('ekoku_units', JSON.stringify(cloudUnits)); } catch {}
             }
             if (Array.isArray(cloudCoords)) {
               setCategoryCoordinators(cloudCoords);
+              try { localStorage.setItem('ekoku_category_coordinators', JSON.stringify(cloudCoords)); } catch {}
             }
             if (Array.isArray(cloudRoles)) {
               setCustomRoles(cloudRoles);
+              try { localStorage.setItem('ekoku_custom_roles', JSON.stringify(cloudRoles)); } catch {}
             }
             if (Array.isArray(cloudExecs)) {
               setExecutiveLeaders(cloudExecs);
+              try { localStorage.setItem('ekoku_executive_leaders', JSON.stringify(cloudExecs)); } catch {}
             }
             if (cloudSettings) {
               const cloudLogo = cloudSettings.schoolLogo || cloudSettings.schoolLogoUrl;
-              setSettings(prev => ({ 
-                ...prev, 
-                ...cloudSettings,
-                schoolLogo: cloudLogo || prev.schoolLogo,
-                schoolLogoUrl: cloudLogo || prev.schoolLogoUrl,
-              }));
+              setSettings(prev => {
+                const merged = {
+                  ...prev,
+                  ...cloudSettings,
+                  schoolLogo: cloudLogo || prev.schoolLogo || prev.schoolLogoUrl,
+                  schoolLogoUrl: cloudLogo || prev.schoolLogoUrl || prev.schoolLogo,
+                };
+                try { localStorage.setItem('ekoku_settings', JSON.stringify(merged)); } catch {}
+                return merged;
+              });
             }
             if (cloudSheetId) {
               setSheetId(cloudSheetId);
@@ -448,21 +489,27 @@ export default function App() {
   }, [teachers, assignments, units, settings, sheetId, categoryCoordinators, customRoles, executiveLeaders]);
 
   // Multi-device synchronization:
-  // If user opens a shared link (?sheet=...) or this device has sheetId, load from Google Sheet!
+  // ONLY if user explicitly opens a shared link with ?sheet= or ?sheetId=
   const hasAttemptedSheetSync = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const urlSheet = params.get('sheet') || params.get('sheetId');
-    const targetSheetId = urlSheet ? extractSheetId(urlSheet) : sheetId;
+    if (!urlSheet) return; // Jangan segerak automatik jika pautan adalah pautan langsung e-KOKU tanpa parameter sheet
 
-    if (targetSheetId && (!hasAttemptedSheetSync.current || urlSheet)) {
-      hasAttemptedSheetSync.current = true;
-      (async () => {
-        try {
-          setIsSyncing(true);
-          const data = await fetchFromGoogleSheet(targetSheetId, units);
-          if (data.teachers.length > 0 || data.assignments.length > 0) {
+    const targetSheetId = extractSheetId(urlSheet);
+    if (!targetSheetId || hasAttemptedSheetSync.current) return;
+    hasAttemptedSheetSync.current = true;
+
+    (async () => {
+      try {
+        setIsSyncing(true);
+        const data = await fetchFromGoogleSheet(targetSheetId, units);
+        if (data.teachers.length > 0 || data.assignments.length > 0) {
+          // Lindungi data komputer terkini: Jangan timpa jika data pelayan/komputer semasa lebih lengkap & terkini
+          const currentIsCustom = teachers.length > 0 && teachers.some(t => !DEFAULT_TEACHERS.some(dt => dt.name === t.name));
+          
+          if (!currentIsCustom || data.teachers.length >= teachers.length) {
             setTeachers(data.teachers);
             setAssignments(data.assignments);
             if (data.customUnits && data.customUnits.length > 0) {
@@ -474,38 +521,45 @@ export default function App() {
             if (data.executiveLeaders && data.executiveLeaders.length > 0) {
               setExecutiveLeaders(data.executiveLeaders);
             }
-            if (data.schoolSettings) {
-              const sheetLogo = data.schoolSettings.schoolLogo || data.schoolSettings.schoolLogoUrl;
-              setSettings(prev => ({ 
-                ...prev, 
-                ...data.schoolSettings,
-                schoolLogo: sheetLogo || prev.schoolLogo,
-                schoolLogoUrl: sheetLogo || prev.schoolLogoUrl,
-              }));
-            }
-            // Simpan serta-merta ke storan tempatan peranti untuk kegunaan luar talian telefon
             try {
               localStorage.setItem('ekoku_teachers', JSON.stringify(data.teachers));
               localStorage.setItem('ekoku_assignments', JSON.stringify(data.assignments));
               if (data.customUnits) localStorage.setItem('ekoku_units', JSON.stringify(data.customUnits));
               if (data.categoryCoordinators) localStorage.setItem('ekoku_category_coordinators', JSON.stringify(data.categoryCoordinators));
               if (data.executiveLeaders) localStorage.setItem('ekoku_executive_leaders', JSON.stringify(data.executiveLeaders));
-              if (data.schoolSettings) localStorage.setItem('ekoku_settings', JSON.stringify(data.schoolSettings));
             } catch {}
-            showToast(`Pangkalan data sekolah (${data.teachers.length} guru) berjaya dimuatkan ke peranti ini!`);
           }
-        } catch (err: unknown) {
-          console.warn('Auto-sync dari Google Sheet pada peranti ini:', err);
-          const msg = err instanceof Error ? err.message : '';
-          if (msg.includes('Anyone with the link') || msg.includes('kebenaran') || msg.includes('401') || msg.includes('403')) {
-            showToast('Google Sheet dikesan, tetapi fail perlu disetkan kepada "Anyone with link can view" di Drive atau log masuk.', 'warning');
+
+          // Gabungkan tetapan sekolah dengan SELAMAT - Jangan sekali-kali memadam logo sekolah yang sedia ada!
+          if (data.schoolSettings) {
+            const sheetLogo = data.schoolSettings.schoolLogo || data.schoolSettings.schoolLogoUrl;
+            setSettings(prev => {
+              const merged = { 
+                ...prev, 
+                ...data.schoolSettings,
+                schoolLogo: sheetLogo || prev.schoolLogo || prev.schoolLogoUrl,
+                schoolLogoUrl: sheetLogo || prev.schoolLogoUrl || prev.schoolLogo,
+              };
+              try {
+                localStorage.setItem('ekoku_settings', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
           }
-        } finally {
-          setIsSyncing(false);
+
+          showToast(`Pangkalan data sekolah (${data.teachers.length} guru) berjaya disegerak!`);
         }
-      })();
-    }
-  }, [sheetId]);
+      } catch (err: unknown) {
+        console.warn('Auto-sync dari Google Sheet pada peranti ini:', err);
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('Anyone with the link') || msg.includes('kebenaran') || msg.includes('401') || msg.includes('403')) {
+          showToast('Google Sheet dikesan, tetapi fail perlu disetkan kepada "Anyone with link can view" di Drive atau log masuk.', 'warning');
+        }
+      } finally {
+        setIsSyncing(false);
+      }
+    })();
+  }, []);
 
   // Background Debounced Auto-Save to Google Sheet (Layer 2 unlimited cloud persistence)
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);

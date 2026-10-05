@@ -96,6 +96,7 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [lanIps, setLanIps] = useState<string[]>([]);
   const [useLanIp, setUseLanIp] = useState(false);
+  const [includeSheetParam, setIncludeSheetParam] = useState(false);
   const [isInstantSaving, setIsInstantSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
@@ -106,6 +107,9 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       .then(data => {
         if (data?.lanIps && Array.isArray(data.lanIps) && data.lanIps.length > 0) {
           setLanIps(data.lanIps);
+          if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            setUseLanIp(true);
+          }
         }
       })
       .catch(() => {});
@@ -158,8 +162,9 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
     return `${origin}${pathname}`;
   };
 
+  // Pautan kongsi utama: Pautan terus ke sistem e-KOKU dengan data komputer dan logo terkini
   const shareUrl = typeof window !== 'undefined'
-    ? `${getPublicBaseUrl()}${cleanCurrentSheetId ? `?sheet=${encodeURIComponent(cleanCurrentSheetId)}` : ''}`
+    ? `${getPublicBaseUrl()}${includeSheetParam && cleanCurrentSheetId ? `?sheet=${encodeURIComponent(cleanCurrentSheetId)}` : ''}`
     : '';
 
   // Jana Kod QR tempatan beresolusi tinggi tanpa kebergantungan luar
@@ -523,15 +528,32 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       // 1. Flush immediately to cloud server database
       flushCloudDatabase();
       
-      // 2. If Google Sheet connected, save to Google Sheet as well
+      // 2. If Google Sheet connected and user is logged in or using Apps Script, save to Google Sheet as well
+      let sheetSaved = false;
       if (cleanCurrentSheetId) {
-        await handleSaveToSheetConfirm();
+        if (isAppsScriptUrl(cleanCurrentSheetId)) {
+          await handleSaveToSheetConfirm();
+          sheetSaved = true;
+        } else {
+          const token = await getAccessToken();
+          if (token) {
+            await handleSaveToSheetConfirm();
+            sheetSaved = true;
+          }
+        }
       }
-      setSaveSuccessMsg('Pangkalan data & logo sekolah berjaya disimpan! Sedia diimbas pada telefon.');
-      setTimeout(() => setSaveSuccessMsg(null), 5000);
+
+      if (sheetSaved) {
+        setSaveSuccessMsg('✅ Pangkalan data & logo sekolah berjaya disimpan ke pelayan dan Google Sheet!');
+      } else if (cleanCurrentSheetId) {
+        setSaveSuccessMsg('✅ Data & logo terkini berjaya disimpan ke pelayan! Sedia diimbas pada telefon melalui Pautan Langsung.');
+      } else {
+        setSaveSuccessMsg('✅ Pangkalan data & logo sekolah berjaya disimpan! Sedia diimbas pada telefon.');
+      }
+      setTimeout(() => setSaveSuccessMsg(null), 6000);
     } catch (err: any) {
       console.warn('Ralat menyimpan sebelum kongsi:', err);
-      setSaveSuccessMsg('Pangkalan data awan telah dikemas kini!');
+      setSaveSuccessMsg('✅ Pangkalan data awan telah dikemas kini!');
       setTimeout(() => setSaveSuccessMsg(null), 5000);
     } finally {
       setIsInstantSaving(false);
@@ -1065,10 +1087,23 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
                 </div>
 
                 {/* Direct Share Link & Copy Button */}
-                <div className="space-y-1.5 text-left">
-                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                    Pautan Langsung Aplikasi:
-                  </label>
+                <div className="space-y-2 text-left">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      Pautan Langsung Aplikasi (Data &amp; Logo Komputer Terkini):
+                    </label>
+                    {cleanCurrentSheetId && (
+                      <label className="flex items-center gap-1.5 text-[10px] text-slate-600 dark:text-slate-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={includeSheetParam}
+                          onChange={(e) => setIncludeSheetParam(e.target.checked)}
+                          className="rounded text-emerald-600 focus:ring-emerald-500 w-3 h-3"
+                        />
+                        <span>Sertakan rujukan Sheet (?sheet=...)</span>
+                      </label>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="text"
@@ -1085,9 +1120,19 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
                       <span>{copiedShareUrl ? 'Pautan Disalin!' : 'Salin Pautan'}</span>
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    💡 <b>Tip:</b> Tekan <i>Salin Pautan</i> dan hantar ke WhatsApp atau Telegram untuk dibuka terus di telefon guru-guru lain.
-                  </p>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                    <span>💡 <b>Tip:</b> Tekan <i>Salin Pautan</i> dan hantar ke WhatsApp/Telegram untuk dibuka di telefon.</span>
+                    {cleanCurrentSheetId && (
+                      <a
+                        href={`https://docs.google.com/spreadsheets/d/${cleanCurrentSheetId}/edit`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline shrink-0 ml-2"
+                      >
+                        Buka Google Sheet di Drive ↗
+                      </a>
+                    )}
+                  </div>
                 </div>
 
                 {/* Info Untuk GPK Sekolah Lain */}

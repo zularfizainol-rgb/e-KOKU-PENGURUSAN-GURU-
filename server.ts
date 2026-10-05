@@ -39,9 +39,9 @@ app.get('/api/server-info', (_req, res) => {
         }
       }
     }
-    return res.json({ lanIps, port: PORT });
+    return res.json({ lanIps, port: PORT, appUrl: process.env.APP_URL || '' });
   } catch {
-    return res.json({ lanIps: [], port: PORT });
+    return res.json({ lanIps: [], port: PORT, appUrl: process.env.APP_URL || '' });
   }
 });
 
@@ -109,7 +109,7 @@ async function startServer() {
     } catch (e) {
       console.warn('Gagal membaca data permulaan sekolah untuk HTML:', e);
     }
-    return rawHtml.replace('</head>', `${initialDataScript}</head>`);
+    return rawHtml.replace('</head>', () => `${initialDataScript}</head>`);
   };
 
   if (process.env.NODE_ENV === 'production') {
