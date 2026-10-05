@@ -138,10 +138,31 @@ export default function App() {
 
   const [settings, setSettings] = useState<SchoolSettings>(() => {
     if (initialData?.settings && initialData.settings.schoolName) {
-      return { ...DEFAULT_SCHOOL_SETTINGS, ...initialData.settings };
+      const s = initialData.settings;
+      const logo = s.schoolLogo || s.schoolLogoUrl;
+      return { 
+        ...DEFAULT_SCHOOL_SETTINGS, 
+        ...s,
+        schoolLogo: logo,
+        schoolLogoUrl: logo,
+      };
     }
     const saved = localStorage.getItem('ekoku_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_SCHOOL_SETTINGS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const logo = parsed.schoolLogo || parsed.schoolLogoUrl;
+        return {
+          ...DEFAULT_SCHOOL_SETTINGS,
+          ...parsed,
+          schoolLogo: logo,
+          schoolLogoUrl: logo,
+        };
+      } catch (e) {
+        console.warn('Gagal membaca ekoku_settings tempatan:', e);
+      }
+    }
+    return DEFAULT_SCHOOL_SETTINGS;
   });
 
   const [sheetId, setSheetId] = useState<string>(() => {
@@ -349,7 +370,13 @@ export default function App() {
               setExecutiveLeaders(cloudExecs);
             }
             if (cloudSettings) {
-              setSettings(prev => ({ ...prev, ...cloudSettings }));
+              const cloudLogo = cloudSettings.schoolLogo || cloudSettings.schoolLogoUrl;
+              setSettings(prev => ({ 
+                ...prev, 
+                ...cloudSettings,
+                schoolLogo: cloudLogo || prev.schoolLogo,
+                schoolLogoUrl: cloudLogo || prev.schoolLogoUrl,
+              }));
             }
             if (cloudSheetId) {
               setSheetId(cloudSheetId);
@@ -379,6 +406,15 @@ export default function App() {
     // Langkau kitaran simpanan pertama sebaik sahaja muat turun awan selesai untuk mengelakkan peranti baharu menimpa data
     if (!isCloudDataHydratedRef.current) {
       isCloudDataHydratedRef.current = true;
+      return;
+    }
+
+    // Safeguard: Jangan sekali-kali menimpa pangkalan data pelayan jika peranti ini hanya memegang data contoh lalai!
+    const isOnlyDefault = 
+      settings.schoolName === 'SEKOLAH SAYA' && 
+      teachers.length <= 15 && 
+      teachers.every(t => DEFAULT_TEACHERS.some(dt => dt.name === t.name));
+    if (isOnlyDefault) {
       return;
     }
 
@@ -432,10 +468,31 @@ export default function App() {
             if (data.customUnits && data.customUnits.length > 0) {
               setUnits(data.customUnits);
             }
-            if (data.schoolSettings) {
-              setSettings(prev => ({ ...prev, ...data.schoolSettings }));
+            if (data.categoryCoordinators && data.categoryCoordinators.length > 0) {
+              setCategoryCoordinators(data.categoryCoordinators);
             }
-            showToast(`Pangkalan data Google Sheet berjaya dimuatkan ke peranti ini! (${data.teachers.length} guru)`);
+            if (data.executiveLeaders && data.executiveLeaders.length > 0) {
+              setExecutiveLeaders(data.executiveLeaders);
+            }
+            if (data.schoolSettings) {
+              const sheetLogo = data.schoolSettings.schoolLogo || data.schoolSettings.schoolLogoUrl;
+              setSettings(prev => ({ 
+                ...prev, 
+                ...data.schoolSettings,
+                schoolLogo: sheetLogo || prev.schoolLogo,
+                schoolLogoUrl: sheetLogo || prev.schoolLogoUrl,
+              }));
+            }
+            // Simpan serta-merta ke storan tempatan peranti untuk kegunaan luar talian telefon
+            try {
+              localStorage.setItem('ekoku_teachers', JSON.stringify(data.teachers));
+              localStorage.setItem('ekoku_assignments', JSON.stringify(data.assignments));
+              if (data.customUnits) localStorage.setItem('ekoku_units', JSON.stringify(data.customUnits));
+              if (data.categoryCoordinators) localStorage.setItem('ekoku_category_coordinators', JSON.stringify(data.categoryCoordinators));
+              if (data.executiveLeaders) localStorage.setItem('ekoku_executive_leaders', JSON.stringify(data.executiveLeaders));
+              if (data.schoolSettings) localStorage.setItem('ekoku_settings', JSON.stringify(data.schoolSettings));
+            } catch {}
+            showToast(`Pangkalan data sekolah (${data.teachers.length} guru) berjaya dimuatkan ke peranti ini!`);
           }
         } catch (err: unknown) {
           console.warn('Auto-sync dari Google Sheet pada peranti ini:', err);

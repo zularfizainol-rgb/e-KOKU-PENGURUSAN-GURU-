@@ -57,6 +57,8 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
 
   if (!isOpen) return null;
 
+  const effectiveSchoolLogo = settings.schoolLogo || settings.schoolLogoUrl;
+
   // Active teacher
   const currentTeacher = allTeachers.find(t => t.id === (selectedTeacherId || teacher?.id)) || teacher || allTeachers[0];
   if (!currentTeacher) return null;
@@ -156,9 +158,9 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
               <div className="flex items-center gap-5 border-b-2 border-slate-900 pb-5 mb-6">
                 {/* Logo Sekolah */}
                 <div className="w-20 h-20 shrink-0 flex items-center justify-center">
-                  {settings.schoolLogo ? (
+                  {effectiveSchoolLogo ? (
                     <img 
-                      src={settings.schoolLogo} 
+                      src={effectiveSchoolLogo} 
                       alt="Logo Sekolah" 
                       className="max-h-20 max-w-20 object-contain"
                     />

@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       setIsUploadingLogo(true);
       setLogoErrorMessage(null);
       const dataUrl = await processImageUpload(file, 400, 400);
-      setTempSettings(prev => ({ ...prev, schoolLogo: dataUrl }));
+      setTempSettings(prev => ({ ...prev, schoolLogo: dataUrl, schoolLogoUrl: dataUrl }));
     } catch (err: any) {
       setLogoErrorMessage(err?.message || 'Gagal memproses gambar logo sekolah');
     } finally {
@@ -123,7 +123,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleRemoveSchoolLogo = () => {
-    setTempSettings(prev => ({ ...prev, schoolLogo: undefined }));
+    setTempSettings(prev => ({ ...prev, schoolLogo: undefined, schoolLogoUrl: undefined }));
   };
 
   const handleRemoveTs25Logo = () => {
@@ -133,6 +133,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   const effectiveTs25Logo = settings.ts25Logo !== 'NONE' 
     ? (settings.ts25Logo || OFFICIAL_TS25_LOGO_SVG) 
     : null;
+
+  const effectiveSchoolLogo = settings.schoolLogo || settings.schoolLogoUrl;
+  const effectiveTempLogo = tempSettings.schoolLogo || tempSettings.schoolLogoUrl;
 
   const morningTeachers = teachers.filter(t => t.session === 'Pagi').length;
   const afternoonTeachers = teachers.filter(t => t.session === 'Petang').length;
@@ -158,9 +161,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Logos side by side */}
             <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
               {/* Logo Sekolah */}
-              {settings.schoolLogo ? (
+              {effectiveSchoolLogo ? (
                 <img
-                  src={settings.schoolLogo}
+                  src={effectiveSchoolLogo}
                   alt="Logo Sekolah"
                   onClick={handleOpenSettingsModal}
                   className="w-11 h-11 sm:w-13 sm:h-13 object-contain rounded-2xl bg-white dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700 shadow-md shadow-emerald-500/10 cursor-pointer shrink-0 hover:scale-105 transition-transform"
@@ -438,7 +441,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <School className="w-4 h-4 text-emerald-600" />
                           <span>Logo Rasmi Sekolah</span>
                         </span>
-                        {tempSettings.schoolLogo ? (
+                        {effectiveTempLogo ? (
                           <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
                             Aktif
                           </span>
@@ -450,9 +453,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {/* Logo Preview Frame */}
                       <div className="flex items-center gap-3.5 mb-3">
                         <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center p-1.5 shrink-0 shadow-xs overflow-hidden">
-                          {tempSettings.schoolLogo ? (
+                          {effectiveTempLogo ? (
                             <img
-                              src={tempSettings.schoolLogo}
+                              src={effectiveTempLogo}
                               alt="Logo Sekolah"
                               className="w-full h-full object-contain"
                             />
@@ -466,7 +469,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                         <div className="text-xs space-y-1">
                           <p className="text-slate-700 dark:text-slate-300 font-semibold leading-tight">
-                            {tempSettings.schoolLogo ? 'Lencana sekolah anda siap dipaparkan.' : 'Muat naik fail logo / lencana sekolah.'}
+                            {effectiveTempLogo ? 'Lencana sekolah anda siap dipaparkan.' : 'Muat naik fail logo / lencana sekolah.'}
                           </p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">
                             Disyorkan: Format PNG lutsinar atau JPG (saiz automatik diselaraskan).
@@ -491,10 +494,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                         className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>{tempSettings.schoolLogo ? 'Tukar Logo' : 'Upload Logo Sekolah'}</span>
+                        <span>{effectiveTempLogo ? 'Tukar Logo' : 'Upload Logo Sekolah'}</span>
                       </button>
 
-                      {tempSettings.schoolLogo && (
+                      {effectiveTempLogo && (
                         <button
                           type="button"
                           onClick={handleRemoveSchoolLogo}
@@ -773,7 +776,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onUpdateSettings(tempSettings);
+                  const logoVal = tempSettings.schoolLogo || tempSettings.schoolLogoUrl;
+                  onUpdateSettings({
+                    ...tempSettings,
+                    schoolLogo: logoVal,
+                    schoolLogoUrl: logoVal,
+                  });
                   setShowSettingsModal(false);
                 }}
                 className="px-5 py-2.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-600/20 transition-all cursor-pointer"

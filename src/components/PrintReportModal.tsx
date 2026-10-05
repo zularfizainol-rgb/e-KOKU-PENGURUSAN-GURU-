@@ -48,6 +48,8 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
 
   if (!isOpen) return null;
 
+  const effectiveSchoolLogo = settings.schoolLogo || settings.schoolLogoUrl;
+
   const unitMap = new Map(units.map(u => [u.id, u]));
   const teacherMap = new Map(teachers.map(t => [t.id, t]));
 
@@ -158,9 +160,9 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
             <div className="flex items-center justify-between pb-4 border-b-2 border-black mb-6 gap-4">
               {/* Left Column: School Logo */}
               <div className="w-20 shrink-0 flex items-center justify-start">
-                {settings.schoolLogo ? (
+                {effectiveSchoolLogo ? (
                   <img
-                    src={settings.schoolLogo}
+                    src={effectiveSchoolLogo}
                     alt="Logo Sekolah"
                     className="max-h-20 max-w-[80px] object-contain"
                   />

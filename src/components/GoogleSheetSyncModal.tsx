@@ -19,7 +19,8 @@ import {
   ChevronDown,
   ChevronUp,
   QrCode,
-  Trash2
+  Trash2,
+  Save
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { googleSignIn, logout, isUserCancelledAuthError, parseAuthError, getAccessToken } from '../services/auth';
@@ -43,7 +44,14 @@ interface GoogleSheetSyncModalProps {
   executiveLeaders?: ExecutiveLeader[];
   customRoles?: string[];
   initialTab?: 'qr' | 'sheet' | 'help';
-  onImportSheetData: (teachers: Teacher[], assignments: UnitAssignment[], customUnits?: KokuUnit[]) => void;
+  onImportSheetData: (
+    teachers: Teacher[], 
+    assignments: UnitAssignment[], 
+    customUnits?: KokuUnit[],
+    schoolSettings?: Partial<SchoolSettings>,
+    categoryCoordinators?: CategoryCoordinator[],
+    executiveLeaders?: ExecutiveLeader[]
+  ) => void;
   lastSyncTime?: string | null;
   autoSyncEnabled: boolean;
   onToggleAutoSync: (enabled: boolean) => void;
@@ -86,6 +94,22 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
   const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
   const [copiedAppsScript, setCopiedAppsScript] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+  const [lanIps, setLanIps] = useState<string[]>([]);
+  const [useLanIp, setUseLanIp] = useState(false);
+  const [isInstantSaving, setIsInstantSaving] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  // Fetch server info (LAN IPs) for easy local phone testing on same WiFi
+  useEffect(() => {
+    fetch('/api/server-info')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.lanIps && Array.isArray(data.lanIps) && data.lanIps.length > 0) {
+          setLanIps(data.lanIps);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Set active tab if initialTab changes or modal opens
   useEffect(() => {
@@ -120,8 +144,22 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
 
   const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const cleanCurrentSheetId = extractSheetId(inputSheetId || sheetId);
+
+  // Pastikan URL pautan yang dijana menggunakan origin pelayan sebenar supaya data & logo boleh dimuat turun
+  const getPublicBaseUrl = () => {
+    if (typeof window === 'undefined') return '';
+    // Jika pengujian di localhost dan pengguna memilih URL IP Wi-Fi
+    if (useLanIp && lanIps.length > 0 && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      const port = window.location.port ? `:${window.location.port}` : '';
+      return `${window.location.protocol}//${lanIps[0]}${port}${window.location.pathname || ''}`;
+    }
+    const origin = window.location.origin;
+    const pathname = window.location.pathname || '';
+    return `${origin}${pathname}`;
+  };
+
   const shareUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}${window.location.pathname}${cleanCurrentSheetId ? `?sheet=${encodeURIComponent(cleanCurrentSheetId)}` : ''}`
+    ? `${getPublicBaseUrl()}${cleanCurrentSheetId ? `?sheet=${encodeURIComponent(cleanCurrentSheetId)}` : ''}`
     : '';
 
   // Jana Kod QR tempatan beresolusi tinggi tanpa kebergantungan luar
@@ -339,13 +377,22 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       setInputSheetId(newId);
       onSetSheetId(newId);
 
-      const result = await saveAllToGoogleSheet(newId, teachers, assignments, units, schoolSettings);
+      const result = await saveAllToGoogleSheet(newId, teachers, assignments, units, schoolSettings, categoryCoordinators, executiveLeaders);
       
       // Also persist to server
       fetch('/api/cloud-database', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teachers, assignments, units, settings: schoolSettings, sheetId: newId }),
+        body: JSON.stringify({ 
+          teachers, 
+          assignments, 
+          units, 
+          settings: schoolSettings, 
+          sheetId: newId,
+          categoryCoordinators: categoryCoordinators || [],
+          executiveLeaders: executiveLeaders || [],
+          customRoles: customRoles || [],
+        }),
       }).catch(() => {});
 
       setStatusMessage({
@@ -429,7 +476,7 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
     setIsLoading(true);
     setStatusMessage({ type: 'info', text: 'Sedang menyimpan ke Google Sheet...' });
     try {
-      const result = await saveAllToGoogleSheet(cleanId, teachers, assignments, units, schoolSettings);
+      const result = await saveAllToGoogleSheet(cleanId, teachers, assignments, units, schoolSettings, categoryCoordinators, executiveLeaders);
       onSetSheetId(cleanId);
       setNeedsReauth(false);
 
@@ -437,7 +484,16 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       fetch('/api/cloud-database', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teachers, assignments, units, settings: schoolSettings, sheetId: cleanId }),
+        body: JSON.stringify({ 
+          teachers, 
+          assignments, 
+          units, 
+          settings: schoolSettings, 
+          sheetId: cleanId,
+          categoryCoordinators: categoryCoordinators || [],
+          executiveLeaders: executiveLeaders || [],
+          customRoles: customRoles || [],
+        }),
       }).catch(() => {});
 
       setStatusMessage({
@@ -457,6 +513,28 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleInstantSyncAndSave = async () => {
+    try {
+      setIsInstantSaving(true);
+      setSaveSuccessMsg(null);
+      // 1. Flush immediately to cloud server database
+      flushCloudDatabase();
+      
+      // 2. If Google Sheet connected, save to Google Sheet as well
+      if (cleanCurrentSheetId) {
+        await handleSaveToSheetConfirm();
+      }
+      setSaveSuccessMsg('Pangkalan data & logo sekolah berjaya disimpan! Sedia diimbas pada telefon.');
+      setTimeout(() => setSaveSuccessMsg(null), 5000);
+    } catch (err: any) {
+      console.warn('Ralat menyimpan sebelum kongsi:', err);
+      setSaveSuccessMsg('Pangkalan data awan telah dikemas kini!');
+      setTimeout(() => setSaveSuccessMsg(null), 5000);
+    } finally {
+      setIsInstantSaving(false);
     }
   };
 
@@ -832,22 +910,54 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
             )}
 
             {/* TAB 2: MULTI-DEVICE & SMARTPHONE QR CODE */}
-            {activeTab === 'qr' && (
+            {activeTab === 'qr' && (() => {
+              const effectiveLogo = schoolSettings.schoolLogo || schoolSettings.schoolLogoUrl;
+              return (
               <div className="space-y-3.5 text-center">
-                {/* Status Ringkasan Data Sekolah */}
-                <div className="p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-left text-xs">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="font-black text-emerald-950 dark:text-emerald-200 text-xs sm:text-sm truncate">
-                      🏫 {schoolSettings.schoolName || 'SEKOLAH SAYA'}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 shrink-0">
-                      Sesi {schoolSettings.academicYear || '2026/2027'}
-                    </span>
+                {/* Status Ringkasan Data & Logo Sekolah */}
+                <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-left text-xs">
+                  <div className="flex items-center gap-3 mb-2.5">
+                    {/* Logo Sekolah Preview */}
+                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1 shrink-0 shadow-xs overflow-hidden">
+                      {effectiveLogo ? (
+                        <img
+                          src={effectiveLogo}
+                          alt="Logo Sekolah"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-center text-slate-400 p-0.5">
+                          <span className="text-xl">🏫</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-black text-emerald-950 dark:text-emerald-200 text-xs sm:text-sm truncate">
+                          {schoolSettings.schoolName || 'SEKOLAH SAYA'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 shrink-0">
+                          Sesi {schoolSettings.academicYear || '2026/2027'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold truncate">
+                        {schoolSettings.schoolCode ? `Kod: ${schoolSettings.schoolCode}` : 'e-KOKU GPK'} • {schoolSettings.gpkKokuName || 'GPK Kokurikulum'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-slate-600 dark:text-slate-300 font-semibold flex-wrap">
+
+                  <div className="flex items-center gap-2.5 text-[11px] text-slate-600 dark:text-slate-300 font-semibold flex-wrap pt-2 border-t border-emerald-200/60 dark:border-emerald-800/60">
                     <span>👥 <b>{teachers.length}</b> Orang Guru</span>
                     <span>•</span>
                     <span>📋 <b>{assignments.length}</b> Agihan Unit</span>
+                    <span>•</span>
+                    <span className="font-bold flex items-center gap-1">
+                      {effectiveLogo ? (
+                        <span className="text-emerald-700 dark:text-emerald-300">✅ Logo Sekolah Sedia</span>
+                      ) : (
+                        <span className="text-amber-600 dark:text-amber-400">⚠️ Logo Lalai (Belum Muat Naik)</span>
+                      )}
+                    </span>
                     <span>•</span>
                     <span className="text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1">
                       {cleanCurrentSheetId ? (
@@ -865,6 +975,34 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
                   </div>
                 </div>
 
+                {/* Butang Pantas: Simpan & Segerak Sekarang */}
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleInstantSyncAndSave}
+                    disabled={isInstantSaving}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-2xl font-black text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
+                  >
+                    {isInstantSaving ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Sedang Menyimpan Data &amp; Logo ke Awan...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Kemas Kini &amp; Simpan Data/Logo Sebelum Imbas</span>
+                      </>
+                    )}
+                  </button>
+                  {saveSuccessMsg && (
+                    <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 rounded-xl text-xs font-bold text-emerald-800 dark:text-emerald-200 flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{saveSuccessMsg}</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Panduan Buka di Telefon */}
                 <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-left">
                   <span className="font-bold text-slate-900 dark:text-white block mb-1 text-xs flex items-center gap-1.5">
@@ -872,21 +1010,37 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
                   </span>
                   <ol className="text-[11px] text-slate-600 dark:text-slate-300 list-decimal list-inside space-y-1">
                     <li>Buka kamera telefon anda dan halakan ke <b>Kod QR</b> di bawah.</li>
-                    <li>Tekan notifikasi pautan yang muncul pada skrin kamera telefon.</li>
-                    <li>Aplikasi dibuka serta-merta dengan jadual dan agihan kokurikulum sekolah anda tanpa kehilangan data!</li>
+                    <li>Tekan pautan yang dipaparkan pada skrin kamera telefon.</li>
+                    <li>Aplikasi dibuka dengan nama sekolah, logo sekolah, serta semua <b>{assignments.length} agihan jawatan</b> secara tepat dan kekal!</li>
                   </ol>
                 </div>
 
-                {/* Panduan Khas Jika Diuji di Localhost Komputer */}
+                {/* Pilihan Rangkaian Tempatan Wi-Fi untuk Pengujian Komputer (Localhost) */}
                 {(currentHostname === 'localhost' || currentHostname === '127.0.0.1') && (
-                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-300 dark:border-amber-700/60 text-left text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-300 dark:border-amber-700/60 text-left text-xs text-amber-900 dark:text-amber-200 space-y-2">
                     <div className="flex items-center gap-1.5 font-bold">
                       <span>💡</span>
                       <span>Nota Pengujian Tempatan (Localhost):</span>
                     </div>
                     <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
-                      Anda kini membuka aplikasi ini di <code>localhost</code> komputer anda. Kamera telefon tidak dapat mengakses perkataan <i>localhost</i> secara terus melainkan anda menyambungkan <b>Google Sheet</b> di tab sebelah, atau aplikasi ini di-deploy ke pelayan web awan (cth: Vercel / Cloud Run / Firebase / Domain sekolah). <b>Sebaik sahaja di-deploy atau dipautkan Google Sheet</b>, imbasan telefon akan terus berfungsi 100% lancar dari mana-mana lokasi.
+                      Kamera telefon tidak dapat membuka alamat <code>localhost</code> komputer anda secara terus melainkan anda menggunakan alamat <b>IP Wi-Fi Tempatan</b> atau membuka fail Google Sheet yang dipautkan.
                     </p>
+                    {lanIps.length > 0 && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setUseLanIp(!useLanIp)}
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors cursor-pointer flex items-center gap-1.5 ${
+                            useLanIp
+                              ? 'bg-emerald-600 text-white border-emerald-700'
+                              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <Smartphone className="w-3.5 h-3.5" />
+                          <span>{useLanIp ? '✓ Menggunakan Kod QR IP Wi-Fi' : `Tukar ke Kod QR IP Wi-Fi (${lanIps[0]})`}</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -944,7 +1098,8 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
                   </p>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* TAB 3: HELP & DELIMA / OFFLINE BACKUP */}
             {activeTab === 'help' && (

@@ -42,8 +42,10 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({
   const [formData, setFormData] = useState<SchoolSettings>({
     ...settings,
     showTs25Logo: settings.showTs25Logo ?? false,
-    schoolLogoUrl: settings.schoolLogoUrl ?? '',
-    ts25LogoUrl: settings.ts25LogoUrl ?? '',
+    schoolLogo: settings.schoolLogo ?? settings.schoolLogoUrl ?? '',
+    schoolLogoUrl: settings.schoolLogoUrl ?? settings.schoolLogo ?? '',
+    ts25LogoUrl: settings.ts25LogoUrl ?? settings.ts25Logo ?? '',
+    ts25Logo: settings.ts25Logo ?? settings.ts25LogoUrl ?? '',
     ts25Cohort: settings.ts25Cohort ?? '',
   });
 
@@ -72,7 +74,7 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({
       setIsProcessingSchoolLogo(true);
       setUploadError(null);
       const base64 = await resizeImageToBase64(file, 400, 400);
-      setFormData(prev => ({ ...prev, schoolLogoUrl: base64 }));
+      setFormData(prev => ({ ...prev, schoolLogoUrl: base64, schoolLogo: base64 }));
     } catch (err: any) {
       setUploadError(err.message || 'Gagal memproses fail imej');
     } finally {
@@ -98,6 +100,7 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({
       setFormData(prev => ({ 
         ...prev, 
         ts25LogoUrl: base64,
+        ts25Logo: base64,
         showTs25Logo: true 
       }));
     } catch (err: any) {
@@ -110,14 +113,23 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({
 
   const handleApplyLogoUrl = () => {
     if (!logoUrlTemp.trim()) return;
-    setFormData(prev => ({ ...prev, schoolLogoUrl: logoUrlTemp.trim() }));
+    const url = logoUrlTemp.trim();
+    setFormData(prev => ({ ...prev, schoolLogoUrl: url, schoolLogo: url }));
     setLogoUrlTemp('');
     setUrlInputOpen(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    const finalLogo = formData.schoolLogoUrl || formData.schoolLogo || '';
+    const finalTs25 = formData.ts25LogoUrl || formData.ts25Logo || '';
+    onSave({
+      ...formData,
+      schoolLogo: finalLogo,
+      schoolLogoUrl: finalLogo,
+      ts25Logo: finalTs25,
+      ts25LogoUrl: finalTs25,
+    });
     onClose();
   };
 
@@ -337,10 +349,10 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({
                       className="max-w-full max-h-full object-contain"
                     />
                   </div>
-                  {formData.schoolLogoUrl && (
+                  {(formData.schoolLogoUrl || formData.schoolLogo) && (
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, schoolLogoUrl: '' })}
+                      onClick={() => setFormData({ ...formData, schoolLogoUrl: '', schoolLogo: '' })}
                       className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700 transition-colors"
                       title="Padam Logo Khas"
                     >
@@ -384,10 +396,10 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({
                       <span>Masukkan Pautan URL</span>
                     </button>
 
-                    {formData.schoolLogoUrl && (
+                    {(formData.schoolLogoUrl || formData.schoolLogo) && (
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, schoolLogoUrl: '' })}
+                        onClick={() => setFormData({ ...formData, schoolLogoUrl: '', schoolLogo: '' })}
                         className="px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

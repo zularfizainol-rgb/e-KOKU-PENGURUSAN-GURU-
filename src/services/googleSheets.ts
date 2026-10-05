@@ -1,6 +1,7 @@
-import { Teacher, UnitAssignment, KokuUnit, SchoolSettings, RoleType, SessionType, UnitCategory } from '../types/koku';
+import { Teacher, UnitAssignment, KokuUnit, SchoolSettings, RoleType, SessionType, UnitCategory, CategoryCoordinator, ExecutiveLeader } from '../types/koku';
 import { getAccessToken, clearAccessToken } from './auth';
 import { isValidTeacherName } from '../utils/kokuHelpers';
+import { OFFICIAL_TS25_LOGO_SVG } from '../utils/logoHelpers';
 import * as XLSX from 'xlsx';
 
 export interface SheetImportResult {
@@ -8,6 +9,8 @@ export interface SheetImportResult {
   assignments: UnitAssignment[];
   customUnits?: KokuUnit[];
   schoolSettings?: Partial<SchoolSettings>;
+  categoryCoordinators?: CategoryCoordinator[];
+  executiveLeaders?: ExecutiveLeader[];
 }
 
 export function isAppsScriptUrl(input: string): boolean {
@@ -164,7 +167,9 @@ export async function saveAllToGoogleSheet(
   teachers: Teacher[],
   assignments: UnitAssignment[],
   units: KokuUnit[],
-  schoolSettings: SchoolSettings
+  schoolSettings: SchoolSettings,
+  categoryCoordinators?: CategoryCoordinator[],
+  executiveLeaders?: ExecutiveLeader[]
 ): Promise<{ success: boolean; rowsCount: number; timestamp: string }> {
   const cleanId = extractSheetId(sheetId);
   if (!cleanId) {
@@ -185,6 +190,8 @@ export async function saveAllToGoogleSheet(
       assignments,
       units,
       schoolSettings,
+      categoryCoordinators,
+      executiveLeaders,
       timestamp,
     };
     const res = await fetch(cleanId, {
@@ -379,12 +386,39 @@ export async function saveAllToGoogleSheet(
     ]);
   });
 
-  // 6. Prepare Panduan_GPK sheet data
+  // 6. Prepare Panduan_GPK sheet data with complete school configuration
+  const rawSchoolLogo = schoolSettings.schoolLogo || schoolSettings.schoolLogoUrl || '';
+  const rawTs25Logo = schoolSettings.ts25Logo || schoolSettings.ts25LogoUrl || '';
+  const ts25ToStore = (rawTs25Logo && (rawTs25Logo.includes('<svg') || rawTs25Logo.length > 500))
+    ? 'OFFICIAL_TS25'
+    : (rawTs25Logo === 'NONE' ? 'NONE' : rawTs25Logo);
+
+  // Split school logo into chunks of max 30,000 characters each to avoid Google Sheets cell limit of 50,000
+  const logoChunk1 = rawSchoolLogo.slice(0, 30000);
+  const logoChunk2 = rawSchoolLogo.slice(30000, 60000);
+  const logoChunk3 = rawSchoolLogo.slice(60000, 90000);
+  const logoChunk4 = rawSchoolLogo.slice(90000, 120000);
+  const logoChunk5 = rawSchoolLogo.slice(120000, 150000);
+
   const guideRows: (string | number)[][] = [
     ['PANDUAN PENGURUSAN DATA GOOGLE SHEET GPK KOKURIKULUM', ''],
-    ['Sekolah:', schoolSettings.schoolName],
-    ['Tahun Akademik:', schoolSettings.academicYear],
+    ['Sekolah:', schoolSettings.schoolName || ''],
+    ['Kod Sekolah:', schoolSettings.schoolCode || ''],
+    ['Tahun Akademik:', schoolSettings.academicYear || ''],
+    ['GPK Kokurikulum:', schoolSettings.gpkKokuName || ''],
+    ['Pengetua / Guru Besar:', schoolSettings.principalName || ''],
+    ['Alamat:', schoolSettings.schoolAddress || ''],
+    ['Negeri:', schoolSettings.schoolState || schoolSettings.state || ''],
+    ['Daerah / PPD:', schoolSettings.district || ''],
     ['Tarikh Disimpan:', timestamp],
+    ['Logo Sekolah Part 1:', logoChunk1],
+    ['Logo Sekolah Part 2:', logoChunk2],
+    ['Logo Sekolah Part 3:', logoChunk3],
+    ['Logo Sekolah Part 4:', logoChunk4],
+    ['Logo Sekolah Part 5:', logoChunk5],
+    ['Logo TS25:', ts25ToStore],
+    ['Penyelaras Kategori (JSON):', JSON.stringify(categoryCoordinators || [])],
+    ['Jawatankuasa Pengurusan (JSON):', JSON.stringify(executiveLeaders || [])],
     ['', ''],
     ['CIRI-CIRI & CARA PENGGUNAAN:', ''],
     ['1. Akses Bebas & Tanpa Had:', 'Helaian ini disimpan dalam akaun Google Drive sekolah anda tanpa sebarang sekatan masa atau had penggunaan.'],
@@ -397,6 +431,7 @@ export async function saveAllToGoogleSheet(
     ['Tab "Senarai_Guru":', 'Maklumat rasmi guru-guru sekolah (No. Fail, Jantina, Sesi, Gred, Telefon).'],
     ['Tab "Senarai_Unit":', 'Senarai unit kokurikulum yang aktif bagi tahun semasa.'],
     ['Tab "Ringkasan_Unit":', 'Laporan kepimpinan (Ketua Guru Penasihat & Setiausaha) dan statistik bilangan sesi.'],
+    ['Tab "Panduan_GPK":', 'Maklumat rasmi sekolah, lencana logo sekolah, dan panduan pengurusan data e-Koku.'],
   ];
 
   // 7. Auto-create missing tabs & expand sheet dimensions if needed
@@ -552,7 +587,8 @@ export function parseRawSheetData(
   rawTeachers: string[][],
   rawUnits: string[][],
   rawAssignments: string[][],
-  currentUnits: KokuUnit[] = []
+  currentUnits: KokuUnit[] = [],
+  rawGuide?: string[][]
 ): SheetImportResult {
   // Parse Teachers
   const parsedTeachers: Teacher[] = [];
@@ -887,10 +923,91 @@ export function parseRawSheetData(
   });
   const finalizedTeachers = Array.from(uniqueTeachersMap.values());
 
+  // Parse School Profile, Logo, Coordinators & Leaders from Panduan_GPK tab
+  const schoolSettings: Partial<SchoolSettings> = {};
+  let categoryCoordinators: CategoryCoordinator[] | undefined;
+  let executiveLeaders: ExecutiveLeader[] | undefined;
+
+  if (rawGuide && rawGuide.length > 0) {
+    let logoPart1 = '';
+    let logoPart2 = '';
+    let logoPart3 = '';
+    let logoPart4 = '';
+    let logoPart5 = '';
+
+    rawGuide.forEach(row => {
+      if (!row || row.length < 2) return;
+      const key = String(row[0] || '').trim().toLowerCase();
+      const val = String(row[1] || '').trim();
+      if (!val) return;
+
+      if (key.includes('sekolah:') || key === 'sekolah') {
+        schoolSettings.schoolName = val;
+      } else if (key.includes('kod sekolah')) {
+        schoolSettings.schoolCode = val;
+      } else if (key.includes('tahun akademik')) {
+        schoolSettings.academicYear = val;
+      } else if (key.includes('gpk kokurikulum')) {
+        schoolSettings.gpkKokuName = val;
+      } else if (key.includes('pengetua') || key.includes('guru besar')) {
+        schoolSettings.principalName = val;
+      } else if (key.includes('alamat')) {
+        schoolSettings.schoolAddress = val;
+      } else if (key.includes('negeri')) {
+        schoolSettings.schoolState = val;
+        schoolSettings.state = val;
+      } else if (key.includes('daerah') || key.includes('ppd')) {
+        schoolSettings.district = val;
+      } else if (key.includes('logo sekolah part 1') || key.includes('logo sekolah (data):') || key === 'logo sekolah') {
+        logoPart1 = val;
+      } else if (key.includes('logo sekolah part 2')) {
+        logoPart2 = val;
+      } else if (key.includes('logo sekolah part 3')) {
+        logoPart3 = val;
+      } else if (key.includes('logo sekolah part 4')) {
+        logoPart4 = val;
+      } else if (key.includes('logo sekolah part 5')) {
+        logoPart5 = val;
+      } else if (key.includes('logo ts25')) {
+        if (val === 'OFFICIAL_TS25') {
+          schoolSettings.ts25Logo = OFFICIAL_TS25_LOGO_SVG;
+          schoolSettings.ts25LogoUrl = OFFICIAL_TS25_LOGO_SVG;
+          schoolSettings.showTs25Logo = true;
+        } else if (val === 'NONE') {
+          schoolSettings.ts25Logo = 'NONE';
+          schoolSettings.showTs25Logo = false;
+        } else {
+          schoolSettings.ts25Logo = val;
+          schoolSettings.ts25LogoUrl = val;
+          schoolSettings.showTs25Logo = true;
+        }
+      } else if (key.includes('penyelaras') && key.includes('json')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed) && parsed.length > 0) categoryCoordinators = parsed;
+        } catch {}
+      } else if (key.includes('jawatankuasa pengurusan') && key.includes('json')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (Array.isArray(parsed) && parsed.length > 0) executiveLeaders = parsed;
+        } catch {}
+      }
+    });
+
+    const fullLogo = (logoPart1 + logoPart2 + logoPart3 + logoPart4 + logoPart5).trim();
+    if (fullLogo) {
+      schoolSettings.schoolLogo = fullLogo;
+      schoolSettings.schoolLogoUrl = fullLogo;
+    }
+  }
+
   return {
     teachers: finalizedTeachers,
     assignments: parsedAssignments,
     customUnits: parsedUnits.length > 0 ? parsedUnits : undefined,
+    schoolSettings: Object.keys(schoolSettings).length > 0 ? schoolSettings : undefined,
+    categoryCoordinators,
+    executiveLeaders,
   };
 }
 
@@ -949,13 +1066,21 @@ export async function fetchPublicGoogleSheet(
     finalAssignments = await fetchTabCsv('Sheet1');
   }
 
+  let rawGuide = await fetchTabCsv('Panduan_GPK');
+  if (rawGuide.length <= 1) {
+    rawGuide = await fetchTabCsv('Panduan GPK');
+  }
+  if (rawGuide.length <= 1) {
+    rawGuide = await fetchTabCsv('Panduan');
+  }
+
   if (rawTeachers.length <= 1 && finalAssignments.length <= 1) {
     throw new Error(
       'Gagal membaca Google Sheet secara luar. Pastikan pautan Google Sheet betul dan kebenaran fail disetkan kepada "Anyone with the link can view" (Sesiapa dengan pautan boleh lihat) di Google Drive, atau log masuk akaun Google di atas.'
     );
   }
 
-  return parseRawSheetData(rawTeachers, rawUnits, finalAssignments, currentUnits);
+  return parseRawSheetData(rawTeachers, rawUnits, finalAssignments, currentUnits, rawGuide);
 }
 
 /**
@@ -1009,12 +1134,14 @@ export async function fetchFromGoogleSheet(
       const teacherTab = existingTabs.find(t => /guru|teacher/i.test(t)) || (existingTabs.includes('Senarai_Guru') ? 'Senarai_Guru' : null);
       const unitTab = existingTabs.find(t => /unit/i.test(t)) || (existingTabs.includes('Senarai_Unit') ? 'Senarai_Unit' : null);
       const assignTab = existingTabs.find(t => /agihan|assign/i.test(t)) || (existingTabs.includes('Agihan_Kokurikulum') ? 'Agihan_Kokurikulum' : null);
+      const guideTab = existingTabs.find(t => /panduan|guide/i.test(t)) || (existingTabs.includes('Panduan_GPK') ? 'Panduan_GPK' : null);
 
       // Sediakan senarai julat yang hendak dimuat turun
       const targetRanges: { key: string; range: string }[] = [];
       if (teacherTab) targetRanges.push({ key: 'teachers', range: `'${teacherTab}'!A1:Z1000` });
       if (unitTab) targetRanges.push({ key: 'units', range: `'${unitTab}'!A1:Z500` });
       if (assignTab) targetRanges.push({ key: 'assignments', range: `'${assignTab}'!A1:Z3000` });
+      if (guideTab) targetRanges.push({ key: 'guide', range: `'${guideTab}'!A1:Z50` });
 
       // Jika tiada tab bernama di atas, baca tab pertama (cth: Sheet1 / Helaian1)
       if (targetRanges.length === 0 && existingTabs.length > 0) {
@@ -1043,12 +1170,14 @@ export async function fetchFromGoogleSheet(
           let rawTeachers: string[][] = [];
           let rawUnits: string[][] = [];
           let rawAssignments: string[][] = [];
+          let rawGuide: string[][] = [];
 
           targetRanges.forEach((target, index) => {
             const values = valueRanges[index]?.values || [];
             if (target.key === 'teachers') rawTeachers = values;
             else if (target.key === 'units') rawUnits = values;
             else if (target.key === 'assignments') rawAssignments = values;
+            else if (target.key === 'guide') rawGuide = values;
             else {
               // Jika tab umum (Sheet1 dsb), periksa kandungannya
               if (rawTeachers.length === 0 && values.some(row => row.some(cell => /nama|guru/i.test(cell)))) {
@@ -1060,7 +1189,7 @@ export async function fetchFromGoogleSheet(
           });
 
           if (rawTeachers.length > 1 || rawAssignments.length > 1) {
-            return parseRawSheetData(rawTeachers, rawUnits, rawAssignments, currentUnits);
+            return parseRawSheetData(rawTeachers, rawUnits, rawAssignments, currentUnits, rawGuide);
           }
         }
       }

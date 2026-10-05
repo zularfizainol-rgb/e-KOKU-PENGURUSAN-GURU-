@@ -8,12 +8,42 @@ const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'school_database.json');
 
-app.use(express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '25mb' }));
+
+// Enable CORS for multi-device sync
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
+
+// API: Server info including local LAN IPs for mobile device access on same WiFi
+app.get('/api/server-info', (_req, res) => {
+  try {
+    const os = require('os');
+    const ifaces = os.networkInterfaces();
+    const lanIps: string[] = [];
+    for (const name of Object.keys(ifaces)) {
+      for (const net of ifaces[name] || []) {
+        if (net.family === 'IPv4' && !net.internal) {
+          lanIps.push(net.address);
+        }
+      }
+    }
+    return res.json({ lanIps, port: PORT });
+  } catch {
+    return res.json({ lanIps: [], port: PORT });
+  }
+});
 
 // API: Get latest shared school database across devices
 app.get('/api/cloud-database', (req, res) => {
@@ -100,25 +130,29 @@ async function startServer() {
   } else {
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: 'spa',
+      appType: 'custom',
     });
     
-    // In dev mode, intercept index.html to inject initial database
-    app.use(async (req, res, next) => {
-      if (req.method === 'GET' && !req.path.startsWith('/api') && (req.headers.accept || '').includes('text/html')) {
-        try {
-          const template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
-          const transformedHtml = await vite.transformIndexHtml(req.originalUrl, template);
-          const finalHtml = getIndexHtmlWithInitialData(transformedHtml);
-          return res.status(200).set({ 'Content-Type': 'text/html' }).end(finalHtml);
-        } catch (e) {
-          return next(e);
-        }
-      }
-      next();
-    });
-
+    // Mount Vite middlewares first so all JS, CSS, and Vite internal assets are served correctly
     app.use(vite.middlewares);
+
+    // Catch-all handler for HTML page requests in dev mode
+    app.use('*', async (req, res, next) => {
+      if (req.method !== 'GET' || req.originalUrl.startsWith('/api')) {
+        return next();
+      }
+      try {
+        const template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
+        const transformedHtml = await vite.transformIndexHtml(req.originalUrl, template);
+        const finalHtml = getIndexHtmlWithInitialData(transformedHtml);
+        return res.status(200).set({ 'Content-Type': 'text/html' }).send(finalHtml);
+      } catch (e) {
+        if (typeof (vite as any).ssrFixStacktrace === 'function') {
+          (vite as any).ssrFixStacktrace(e as Error);
+        }
+        return next(e);
+      }
+    });
   }
 
   app.listen(Number(PORT), '0.0.0.0', () => {
