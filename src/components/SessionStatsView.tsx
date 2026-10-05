@@ -139,6 +139,22 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
 
   // Susun senarai unit mengikut urutan kategori yang ditetapkan:
   // Unit Beruniform -> Kelab dan Persatuan -> Sukan dan Permainan -> Rumah Sukan -> Pembangunan
+  const hasPembangunan = useMemo(() => {
+    return units.some(u => u.category === 'PEMBANGUNAN') || assignments.some(a => {
+      const u = units.find(unit => unit.id === a.unitId);
+      return u && u.category === 'PEMBANGUNAN';
+    });
+  }, [units, assignments]);
+
+  const activeCategorySequence = useMemo(() => {
+    return CATEGORY_STAT_SEQUENCE.filter(cat => {
+      if (cat.category === 'PEMBANGUNAN' && !hasPembangunan) {
+        return false;
+      }
+      return true;
+    });
+  }, [hasPembangunan]);
+
   const sortedUnits = useMemo(() => {
     return [...units].sort((a, b) => {
       const pA = CATEGORY_PRIORITY_MAP[a.category] || 99;
@@ -158,7 +174,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
 
   // Statistik pecahan mengikut setiap kategori (dalam turutan yang betul)
   const categoryStats = useMemo(() => {
-    return CATEGORY_STAT_SEQUENCE.map(cat => {
+    return activeCategorySequence.map(cat => {
       const catUnits = units.filter(u => u.category === cat.category);
       const catUnitIds = new Set(catUnits.map(u => u.id));
       const catAssigns = assignments.filter(a => catUnitIds.has(a.unitId));
@@ -191,7 +207,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
         suCount: su,
       };
     });
-  }, [units, assignments, teacherMap]);
+  }, [activeCategorySequence, units, assignments, teacherMap]);
 
   return (
     <div className="space-y-6">
@@ -302,23 +318,23 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
             {units.length}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
-            Merangkumi 5 kategori utama sekolah
+            Merangkumi {activeCategorySequence.length} kategori utama sekolah
           </div>
         </div>
       </div>
 
-      {/* SUSUNAN 5 UNIT KATEGORI: Ringkasan Terperinci */}
+      {/* SUSUNAN UNIT KATEGORI AKTIF: Ringkasan Terperinci */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
             <span>Ringkasan Mengikut Kategori Unit</span>
             <span className="text-[11px] font-bold text-slate-400 normal-case">
-              (Disusun: Unit Beruniform, Kelab &amp; Persatuan, Sukan &amp; Permainan, Rumah Sukan, Pembangunan)
+              (Disusun: {activeCategorySequence.map(c => c.shortName).join(', ')})
             </span>
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${activeCategorySequence.length >= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3`}>
           {categoryStats.map((cat, idx) => (
             <div
               key={cat.category}
@@ -370,7 +386,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
               <span>Jadual Bilangan Guru Sesi Pagi &amp; Petang Mengikut Unit</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Unit disusun mengikut turutan kategori: <b>Unit Beruniform</b> ➔ <b>Kelab dan Persatuan</b> ➔ <b>Sukan dan Permainan</b> ➔ <b>Rumah Sukan</b> ➔ <b>Pembangunan</b>
+              Unit disusun mengikut turutan kategori: <b>{activeCategorySequence.map(c => c.name).join(' ➔ ')}</b>
             </p>
           </div>
 
@@ -387,7 +403,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({
             >
               Semua ({sortedUnits.length})
             </button>
-            {CATEGORY_STAT_SEQUENCE.map(cat => (
+            {activeCategorySequence.map(cat => (
               <button
                 key={cat.category}
                 type="button"

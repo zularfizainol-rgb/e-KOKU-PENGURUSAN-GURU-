@@ -96,7 +96,7 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
     allTableRows.push({
       bidang: 'Pengurusan Kokurikulum Sekolah',
       unitName: er.role.toLowerCase().includes('sukan')
-        ? 'Majlis Pembangunan Sukan Sekolah'
+        ? 'Jawatankuasa Pengurusan Sukan Sekolah (Majlis Sukan Sekolah)'
         : 'Jawatankuasa Pengurusan Kokurikulum Sekolah',
       role: `${er.role} (${er.session})`,
       isManagement: true,

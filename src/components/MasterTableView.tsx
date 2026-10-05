@@ -230,6 +230,15 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
     return map;
   }, [conflicts]);
 
+  // Semak sama ada sekolah mempunyai unit, agihan, atau penyelaras bagi kategori PEMBANGUNAN
+  const hasPembangunanData = useMemo(() => {
+    return (
+      units.some(u => u.category === 'PEMBANGUNAN') ||
+      assignments.some(a => unitMap.get(a.unitId)?.category === 'PEMBANGUNAN') ||
+      (categoryCoordinators || []).some(c => c.category === 'PEMBANGUNAN')
+    );
+  }, [units, assignments, unitMap, categoryCoordinators]);
+
   const filteredTeachers = useMemo(() => {
     const list = teachers.filter(teacher => {
       // Pastikan rekod adalah nama guru yang sah
@@ -691,7 +700,9 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
               <option value="Penyelaras_KELAB">⭐ Penyelaras Kelab &amp; Persatuan</option>
               <option value="Penyelaras_SUKAN">⭐ Penyelaras Sukan &amp; Permainan</option>
               <option value="Penyelaras_RUMAH_SUKAN">⭐ Penyelaras Rumah Sukan</option>
-              <option value="Penyelaras_PEMBANGUNAN">⭐ Penyelaras Pembangunan</option>
+              {hasPembangunanData && (
+                <option value="Penyelaras_PEMBANGUNAN">⭐ Penyelaras Pembangunan</option>
+              )}
             </optgroup>
             <optgroup label="Jawatan Dalam Unit">
               <option value="Ketua Guru Penasihat">Ketua Guru Penasihat</option>
@@ -837,12 +848,14 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
                     <span>Rumah Sukan</span>
                   </div>
                 </th>
-                <th className="py-4 px-3 min-w-[190px]">
-                  <div className="flex items-center gap-1.5">
-                    <span>🚀</span>
-                    <span>Pembangunan / Khas</span>
-                  </div>
-                </th>
+                {hasPembangunanData && (
+                  <th className="py-4 px-3 min-w-[190px]">
+                    <div className="flex items-center gap-1.5">
+                      <span>🚀</span>
+                      <span>Pembangunan / Khas</span>
+                    </div>
+                  </th>
+                )}
                 <th className="py-4 px-3 text-center min-w-[120px]">Status</th>
                 <th className="py-4 px-3 text-center w-24">Tindakan</th>
               </tr>
@@ -850,7 +863,7 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {teachers.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-20 text-center">
+                  <td colSpan={hasPembangunanData ? 10 : 9} className="py-20 text-center">
                     <div className="max-w-md mx-auto px-4">
                       <div className="w-16 h-16 rounded-3xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4 border border-emerald-200 dark:border-emerald-800 shadow-xs">
                         <UserPlus className="w-8 h-8" />
@@ -886,7 +899,7 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
                 </tr>
               ) : filteredTeachers.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-400">
+                  <td colSpan={hasPembangunanData ? 10 : 9} className="py-16 text-center text-slate-400">
                     Tiada maklumat guru ditemui yang sepadan dengan carian atau tapisan.
                   </td>
                 </tr>
@@ -1045,84 +1058,86 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
                         )}
                       </td>
 
-                      {/* Unit Pembangunan (Hanya unit Pembangunan) */}
-                      <td className="py-4 px-3">
-                        {devCoord && (
-                          <div className="mb-2 p-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white shadow-md ring-2 ring-purple-300 dark:ring-purple-500 border border-purple-200">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-[10px] font-black tracking-wide flex items-center gap-1 truncate">
-                                <span>⭐</span>
-                                <span className="truncate">{devCoord.roleTitle || 'PENYELARAS'}</span>
-                              </span>
-                              <span className="text-[9px] font-black bg-white/25 px-1.5 py-0.5 rounded shrink-0">
-                                {devCoord.session}
-                              </span>
+                      {/* Unit Pembangunan (Hanya jika sekolah mempunyai unit / agihan Pembangunan) */}
+                      {hasPembangunanData && (
+                        <td className="py-4 px-3">
+                          {devCoord && (
+                            <div className="mb-2 p-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 text-white shadow-md ring-2 ring-purple-300 dark:ring-purple-500 border border-purple-200">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[10px] font-black tracking-wide flex items-center gap-1 truncate">
+                                  <span>⭐</span>
+                                  <span className="truncate">{devCoord.roleTitle || 'PENYELARAS'}</span>
+                                </span>
+                                <span className="text-[9px] font-black bg-white/25 px-1.5 py-0.5 rounded shrink-0">
+                                  {devCoord.session}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {specialAssigns.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {specialAssigns.map(sp => {
-                              const unit = unitMap.get(sp.unitId);
-                              const roleBadge = getRoleColorBadge(sp.role);
-                              return (
-                                <div key={sp.id} className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs">
-                                  <div className="flex items-center justify-between gap-1">
-                                    <span 
-                                      className="font-extrabold text-purple-950 dark:text-purple-200 truncate cursor-pointer hover:underline"
-                                      onClick={() => handleOpenCategoryPicker(teacher, 'PEMBANGUNAN')}
-                                      title={unit?.name}
-                                    >
-                                      {unit?.name}
-                                    </span>
-                                    <div className="flex items-center gap-0.5 shrink-0">
-                                      <button 
-                                        type="button"
+                          )}
+                          {specialAssigns.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {specialAssigns.map(sp => {
+                                const unit = unitMap.get(sp.unitId);
+                                const roleBadge = getRoleColorBadge(sp.role);
+                                return (
+                                  <div key={sp.id} className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs">
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span 
+                                        className="font-extrabold text-purple-950 dark:text-purple-200 truncate cursor-pointer hover:underline"
                                         onClick={() => handleOpenCategoryPicker(teacher, 'PEMBANGUNAN')}
-                                        className="text-slate-400 hover:text-purple-600 p-0.5 rounded cursor-pointer"
-                                        title="Tukar unit / jawatan"
+                                        title={unit?.name}
                                       >
-                                        <Edit3 className="w-3 h-3" />
-                                      </button>
-                                      <button 
-                                        type="button"
-                                        onClick={() => onRemoveAssignment(sp.id)}
-                                        className="text-slate-400 hover:text-rose-600 font-black p-0.5 text-sm cursor-pointer"
-                                        title="Gugurkan dari unit ini"
-                                      >
-                                        ×
-                                      </button>
+                                        {unit?.name}
+                                      </span>
+                                      <div className="flex items-center gap-0.5 shrink-0">
+                                        <button 
+                                          type="button"
+                                          onClick={() => handleOpenCategoryPicker(teacher, 'PEMBANGUNAN')}
+                                          className="text-slate-400 hover:text-purple-600 p-0.5 rounded cursor-pointer"
+                                          title="Tukar unit / jawatan"
+                                        >
+                                          <Edit3 className="w-3 h-3" />
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          onClick={() => onRemoveAssignment(sp.id)}
+                                          className="text-slate-400 hover:text-rose-600 font-black p-0.5 text-sm cursor-pointer"
+                                          title="Gugurkan dari unit ini"
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-1 mt-1.5">
+                                      <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${roleBadge.bg}`}>
+                                        {sp.role}
+                                      </span>
+                                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-1.5 py-0.2 rounded">
+                                        {sp.session}
+                                      </span>
                                     </div>
                                   </div>
-                                  <div className="flex items-center justify-between gap-1 mt-1.5">
-                                    <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${roleBadge.bg}`}>
-                                      {sp.role}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-1.5 py-0.2 rounded">
-                                      {sp.session}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCategoryPicker(teacher, 'PEMBANGUNAN')}
+                                className="w-full py-1.5 px-2 rounded-lg border border-dashed border-purple-300 dark:border-purple-700 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-[11px] font-bold transition-all text-center cursor-pointer"
+                              >
+                                + Tambah Unit Pembangunan
+                              </button>
+                            </div>
+                          ) : (
                             <button
                               type="button"
                               onClick={() => handleOpenCategoryPicker(teacher, 'PEMBANGUNAN')}
-                              className="w-full py-1.5 px-2 rounded-lg border border-dashed border-purple-300 dark:border-purple-700 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/30 text-[11px] font-bold transition-all text-center cursor-pointer"
+                              className="w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 hover:text-purple-600 hover:border-purple-300 dark:hover:border-purple-700 text-xs font-bold transition-all text-center cursor-pointer hover:bg-purple-50/30"
                             >
-                              + Tambah Unit Pembangunan
+                              + Pilih Pembangunan
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenCategoryPicker(teacher, 'PEMBANGUNAN')}
-                            className="w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 hover:text-purple-600 hover:border-purple-300 dark:hover:border-purple-700 text-xs font-bold transition-all text-center cursor-pointer hover:bg-purple-50/30"
-                          >
-                            + Pilih Pembangunan
-                          </button>
-                        )}
-                      </td>
+                          )}
+                        </td>
+                      )}
 
                       {/* Status / Pertindihan */}
                       <td className="py-4 px-3 text-center">

@@ -60,8 +60,13 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
     })
   );
 
+  const hasPembangunan = units.some(u => u.category === 'PEMBANGUNAN');
+
   const categoriesToDisplay = CATEGORY_CONFIG.filter(
-    cat => categoryFilter === 'Semua' || cat.category === categoryFilter
+    cat => {
+      if (cat.category === 'PEMBANGUNAN' && !hasPembangunan) return false;
+      return categoryFilter === 'Semua' || cat.category === categoryFilter;
+    }
   );
 
   const handlePrint = () => {
@@ -132,7 +137,9 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                 <option value="KELAB">2. Kelab & Persatuan</option>
                 <option value="SUKAN">3. Sukan & Permainan</option>
                 <option value="RUMAH_SUKAN">4. Rumah Sukan</option>
-                <option value="PEMBANGUNAN">5. Pembangunan & Khas</option>
+                {hasPembangunan && (
+                  <option value="PEMBANGUNAN">5. Pembangunan & Khas</option>
+                )}
               </select>
             )}
 
