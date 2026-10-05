@@ -90,6 +90,8 @@ export interface SchoolSettings {
   state: string;
   district: string;
   schoolAddress?: string;
+  schoolPhone?: string;
+  schoolEmail?: string;
   schoolState?: string;
   schoolLogo?: string;
   ts25Logo?: string;

@@ -245,11 +245,54 @@ export const SchoolSettingsModal: React.FC<SchoolSettingsModalProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: SMK SERI BINTANG UTARA"
+                  placeholder="Contoh: SEKOLAH KEBANGSAAN AU KERAMAT"
                   value={formData.schoolName}
                   onChange={e => setFormData({ ...formData, schoolName: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-hidden uppercase"
                 />
+              </div>
+
+              {/* Alamat Sekolah */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Alamat Sekolah (Kepala Surat Pelantikan)</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Automatik dikemaskini pada surat</span>
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Contoh: JALAN 5/56 AU3, 54200 KUALA LUMPUR"
+                  value={formData.schoolAddress || ''}
+                  onChange={e => setFormData({ ...formData, schoolAddress: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-hidden uppercase resize-none font-sans"
+                />
+              </div>
+
+              {/* No Telefon & Email Sekolah */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    No. Telefon Sekolah
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: 03-41079639"
+                    value={formData.schoolPhone || ''}
+                    onChange={e => setFormData({ ...formData, schoolPhone: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-hidden font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Email Rasmi Sekolah
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="Contoh: wba0053@moe.edu.my"
+                    value={formData.schoolEmail || ''}
+                    onChange={e => setFormData({ ...formData, schoolEmail: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-hidden font-mono lowercase"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">

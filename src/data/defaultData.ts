@@ -8,6 +8,9 @@ export const DEFAULT_SCHOOL_SETTINGS: SchoolSettings = {
   gpkKokuName: 'Encik Zularfi bin Zainol',
   state: '',
   district: '',
+  schoolAddress: 'JALAN 5/56 AU3\n54200 KUALA LUMPUR',
+  schoolPhone: '03-41079639',
+  schoolEmail: 'wba0053@moe.edu.my',
 };
 
 export const DEFAULT_UNITS: KokuUnit[] = [

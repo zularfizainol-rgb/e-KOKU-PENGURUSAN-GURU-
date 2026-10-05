@@ -408,6 +408,8 @@ export async function saveAllToGoogleSheet(
     ['GPK Kokurikulum:', schoolSettings.gpkKokuName || ''],
     ['Pengetua / Guru Besar:', schoolSettings.principalName || ''],
     ['Alamat:', schoolSettings.schoolAddress || ''],
+    ['No. Telefon:', schoolSettings.schoolPhone || ''],
+    ['Email:', schoolSettings.schoolEmail || ''],
     ['Negeri:', schoolSettings.schoolState || schoolSettings.state || ''],
     ['Daerah / PPD:', schoolSettings.district || ''],
     ['Tarikh Disimpan:', timestamp],
@@ -953,6 +955,10 @@ export function parseRawSheetData(
         schoolSettings.principalName = val;
       } else if (key.includes('alamat')) {
         schoolSettings.schoolAddress = val;
+      } else if (key.includes('telefon') || key.includes('tel') || key.includes('phone')) {
+        schoolSettings.schoolPhone = val;
+      } else if (key.includes('email') || key.includes('emel')) {
+        schoolSettings.schoolEmail = val;
       } else if (key.includes('negeri')) {
         schoolSettings.schoolState = val;
         schoolSettings.state = val;

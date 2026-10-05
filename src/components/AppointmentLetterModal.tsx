@@ -50,6 +50,9 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
     });
   });
   const [refNumber, setRefNumber] = useState<string>(() => {
+    if (settings.schoolCode === 'WBA0053' || settings.schoolName?.toUpperCase().includes('AU KERAMAT')) {
+      return 'SKAUK';
+    }
     const code = settings.schoolCode || 'KOKU';
     const year = settings.academicYear ? settings.academicYear.split('/')[0].trim() : new Date().getFullYear();
     return `${code}/600-4/1/1(${year})`;
@@ -79,6 +82,73 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
   const teacherExecRoles = executiveLeaders.filter(e => e.teacherId === currentTeacher.id);
   // Category Coordinator Roles (Penyelaras Unit Beruniform, Kelab, Sukan, Rumah Sukan, Pembangunan)
   const teacherCoords = categoryCoordinators.filter(c => c.teacherId === currentTeacher.id);
+
+  // Kumpulkan semua tugasan & jawatan pengurusan kokurikulum ke dalam satu jadual rasmi terus tanpa diasingkan
+  const allTableRows: {
+    bidang: string;
+    unitName: string;
+    role: string;
+    isManagement?: boolean;
+  }[] = [];
+
+  // 1. Jawatan Pengurusan Kokurikulum Sekolah (SU Koku, Naib SU, SU Sukan, Naib SU Sukan)
+  teacherExecRoles.forEach(er => {
+    allTableRows.push({
+      bidang: 'Pengurusan Kokurikulum Sekolah',
+      unitName: er.role.toLowerCase().includes('sukan')
+        ? 'Majlis Pembangunan Sukan Sekolah'
+        : 'Jawatankuasa Pengurusan Kokurikulum Sekolah',
+      role: `${er.role} (${er.session})`,
+      isManagement: true,
+    });
+  });
+
+  // 2. Penyelaras Bidang / Kategori (jika ada)
+  teacherCoords.forEach(tc => {
+    allTableRows.push({
+      bidang: 'Penyelaras Bidang Kokurikulum',
+      unitName: getCategoryTitle(tc.category),
+      role: `${tc.roleTitle || 'Penyelaras'} (${tc.session})`,
+      isManagement: true,
+    });
+  });
+
+  // 3. Pasukan Badan Beruniform
+  allTableRows.push({
+    bidang: 'Pasukan Badan Beruniform',
+    unitName: beruniform ? (unitMap.get(beruniform.unitId)?.name || '-') : 'Tiada Agihan',
+    role: beruniform ? beruniform.role : '-',
+  });
+
+  // 4. Kelab & Persatuan
+  allTableRows.push({
+    bidang: 'Kelab & Persatuan',
+    unitName: kelab ? (unitMap.get(kelab.unitId)?.name || '-') : 'Tiada Agihan',
+    role: kelab ? kelab.role : '-',
+  });
+
+  // 5. Sukan & Permainan
+  allTableRows.push({
+    bidang: 'Sukan & Permainan',
+    unitName: sukan ? (unitMap.get(sukan.unitId)?.name || '-') : 'Tiada Agihan',
+    role: sukan ? sukan.role : '-',
+  });
+
+  // 6. Rumah Sukan
+  allTableRows.push({
+    bidang: 'Rumah Sukan',
+    unitName: rumahSukan ? (unitMap.get(rumahSukan.unitId)?.name || '-') : 'Tiada Agihan',
+    role: rumahSukan ? rumahSukan.role : '-',
+  });
+
+  // 7. Tugas Khas / Pembangunan (jika ada)
+  pembangunan.forEach(p => {
+    allTableRows.push({
+      bidang: 'Tugas Khas / Pembangunan',
+      unitName: unitMap.get(p.unitId)?.name || '-',
+      role: p.role,
+    });
+  });
 
   const handlePrint = () => {
     window.print();
@@ -154,50 +224,61 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
             
             {/* Top Section */}
             <div>
-              {/* Kepala Surat (Header Surat Rasmi KPM / Sekolah) */}
-              <div className="flex items-center gap-5 border-b-2 border-slate-900 pb-5 mb-6">
-                {/* Logo Sekolah */}
-                <div className="w-20 h-20 shrink-0 flex items-center justify-center">
-                  {effectiveSchoolLogo ? (
-                    <img 
-                      src={effectiveSchoolLogo} 
-                      alt="Logo Sekolah" 
-                      className="max-h-20 max-w-20 object-contain"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-full border-2 border-slate-800 flex items-center justify-center font-bold text-xs uppercase">
-                      LOGO
+              {/* Kepala Surat Rasmi (Letterhead Standard KPM / Sekolah) */}
+              <div className="border-b-2 border-black pb-3 mb-5">
+                <div className="flex items-center gap-4 sm:gap-6">
+                  {/* Logo Sekolah */}
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 flex items-center justify-center">
+                    {effectiveSchoolLogo ? (
+                      <img 
+                        src={effectiveSchoolLogo} 
+                        alt="Logo Sekolah" 
+                        className="max-h-24 max-w-24 object-contain"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full border-2 border-slate-800 flex items-center justify-center font-bold text-xs uppercase">
+                        LOGO
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Butiran Rasmi Sekolah (Nama, Alamat di Kiri, No Tel & Email di Kanan) */}
+                  <div className="flex-1 font-sans text-slate-900">
+                    <h1 className="text-base sm:text-lg font-black uppercase tracking-wide leading-tight text-black mb-1">
+                      {settings.schoolName || 'SEKOLAH KEBANGSAAN AU KERAMAT'}
+                    </h1>
+
+                    <div className="flex justify-between items-start text-xs leading-snug">
+                      {/* Alamat Sekolah */}
+                      <div className="font-bold text-slate-900 uppercase whitespace-pre-line max-w-[62%]">
+                        {settings.schoolAddress ? (
+                          settings.schoolAddress
+                        ) : (
+                          <>
+                            <div>JALAN 5/56 AU3</div>
+                            <div>54200 KUALA LUMPUR</div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* No. Tel & Email Sekolah */}
+                      <div className="text-right font-medium text-xs space-y-0.5 shrink-0 pl-3">
+                        <div className="font-bold">
+                          <span className="inline-block text-left">No. <span className="underline">Tel</span> :</span>{' '}
+                          <span className="font-sans font-bold">{settings.schoolPhone || '03-41079639'}</span>
+                        </div>
+                        <div className="font-bold">
+                          <span className="inline-block text-left">Email <span className="underline">&nbsp;</span> :</span>{' '}
+                          <a 
+                            href={`mailto:${settings.schoolEmail || 'wba0053@moe.edu.my'}`} 
+                            className="text-blue-700 underline font-sans"
+                          >
+                            {settings.schoolEmail || 'wba0053@moe.edu.my'}
+                          </a>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                {/* Butiran Rasmi Sekolah */}
-                <div className="flex-1 text-center font-sans">
-                  <h1 className="text-base sm:text-lg font-black uppercase tracking-wide text-slate-900 leading-tight">
-                    {settings.schoolName || 'NAMA SEKOLAH'}
-                  </h1>
-                  <p className="text-xs text-slate-700 font-medium mt-0.5">
-                    {settings.schoolAddress || 'KOD SEKOLAH: ' + (settings.schoolCode || '-')}
-                  </p>
-                  <p className="text-[11px] text-slate-600">
-                    KOD SEKOLAH: <span className="font-bold">{settings.schoolCode || '-'}</span> | NEGERI: <span className="font-bold uppercase">{settings.schoolState || 'MALAYSIA'}</span>
-                  </p>
-                </div>
-
-                {/* Logo TS25 / Kanan */}
-                <div className="w-20 h-20 shrink-0 flex items-center justify-center">
-                  {settings.ts25Logo ? (
-                    <img 
-                      src={settings.ts25Logo} 
-                      alt="Logo TS25" 
-                      className="max-h-20 max-w-20 object-contain"
-                    />
-                  ) : (
-                    <div 
-                      className="w-16 h-16 shrink-0 flex items-center justify-center"
-                      dangerouslySetInnerHTML={{ __html: OFFICIAL_TS25_LOGO_SVG }}
-                    />
-                  )}
+                  </div>
                 </div>
               </div>
 
@@ -205,14 +286,32 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
               <div className="flex justify-between items-start text-xs font-sans mb-6">
                 <div>
                   <p><span className="font-bold">Kepada:</span></p>
-                  <p className="font-bold text-sm uppercase mt-0.5">{currentTeacher.name}</p>
-                  <p className="text-slate-600">No. Fail / KP: {currentTeacher.staffId || '-'}</p>
-                  <p className="text-slate-600">Gred Jawatan: {formatTeacherGrade(currentTeacher.grade)}</p>
-                  <p className="text-slate-600">Sesi: Guru Sesi {currentTeacher.session}</p>
+                  <p className="font-bold text-sm uppercase mt-0.5 text-black">{currentTeacher.name}</p>
+                  <p className="text-slate-600">No. Fail / KP: <span className="font-semibold">{currentTeacher.staffId || '-'}</span></p>
+                  <p className="text-slate-600">Gred Jawatan: <span className="font-semibold">{formatTeacherGrade(currentTeacher.grade)}</span></p>
+                  <p className="text-slate-600">Sesi: <span className="font-semibold">Guru Sesi {currentTeacher.session}</span></p>
                 </div>
                 <div className="text-right space-y-1">
-                  <p><span className="font-bold">Ruj. Kami:</span> {refNumber}</p>
-                  <p><span className="font-bold">Tarikh:</span> {letterDate}</p>
+                  <div className="flex items-center justify-end gap-1.5 font-bold">
+                    <span>Ruj <span className="underline">Kami</span> :</span>
+                    <input
+                      type="text"
+                      value={refNumber}
+                      onChange={(e) => setRefNumber(e.target.value)}
+                      className="font-bold text-xs text-right bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-slate-800 focus:outline-hidden px-1 py-0.5 max-w-[200px] print:border-none print:p-0"
+                      title="Klik untuk sunting No. Rujukan"
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5 font-bold">
+                    <span>Tarikh <span className="underline">&nbsp;</span> :</span>
+                    <input
+                      type="text"
+                      value={letterDate}
+                      onChange={(e) => setLetterDate(e.target.value)}
+                      className="font-bold text-xs text-right bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-slate-800 focus:outline-hidden px-1 py-0.5 max-w-[180px] print:border-none print:p-0"
+                      title="Klik untuk sunting Tarikh Surat"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -236,152 +335,48 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                   2. Sukacita dimaklumkan bahawa pihak Pengurusan Kokurikulum sekolah ini dengan rasminya melantik tuan/puan bagi menjalankan amanah dan tanggungjawab kokurikulum bagi sesi persekolahan <b>{settings.academicYear || '2026/2027'}</b> seperti butiran di bawah:
                 </p>
 
-                {/* Seksyen Khas: Pelantikan Eksekutif Utama (Jika Berkenaan) */}
-                {teacherExecRoles.length > 0 && (
-                  <div className="my-3 p-3.5 rounded-xl border-2 border-slate-900 bg-slate-50 space-y-1.5">
-                    <div className="flex items-center gap-1.5 font-black text-xs uppercase text-slate-900 tracking-wide">
-                      <span>🏛️</span>
-                      <span>JAWATAN UTAMA PENGURUSAN KOKURIKULUM SEKOLAH:</span>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2 mt-1">
-                      {teacherExecRoles.map(er => (
-                        <div key={er.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-300">
-                          <span className="font-black text-xs text-slate-900">
-                            ★ {er.role.toUpperCase()}
-                          </span>
-                          <span className="text-[11px] font-extrabold text-blue-900 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                            SESI {er.session.toUpperCase()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Jadual Agihan Tugas Kokurikulum */}
+                {/* Jadual Agihan Tugas Kokurikulum Bersepadu */}
                 <div className="my-3 overflow-hidden rounded-xl border border-slate-300">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-300">
                         <th className="py-2 px-3 border-r border-slate-300 w-12 text-center">BIL</th>
-                        <th className="py-2 px-3 border-r border-slate-300 w-44">BIDANG / KOMPONEN</th>
+                        <th className="py-2 px-3 border-r border-slate-300 w-48">BIDANG / KOMPONEN</th>
                         <th className="py-2 px-3 border-r border-slate-300">NAMA UNIT / BIDANG TUGAS</th>
                         <th className="py-2 px-3 w-48 text-center">JAWATAN DILANTIK</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {/* 0. Jawatan Pengurusan Kokurikulum (SU Koku, Naib SU Koku, SU Sukan, Naib SU Sukan) */}
-                      {teacherExecRoles.map((er, idx) => (
-                        <tr key={`exec-${er.id || idx}`} className="bg-blue-50/70 font-semibold">
-                          <td className="py-2 px-3 text-center font-black border-r border-slate-300 text-blue-900">★</td>
-                          <td className="py-2 px-3 font-bold border-r border-slate-300 text-blue-950">
-                            Jawatankuasa Pengurusan Kokurikulum Sekolah
+                      {allTableRows.map((row, idx) => (
+                        <tr 
+                          key={idx} 
+                          className={row.isManagement ? 'bg-amber-50/50 font-semibold' : 'hover:bg-slate-50'}
+                        >
+                          <td className="py-2 px-3 text-center font-bold border-r border-slate-300 text-slate-900">
+                            {idx + 1}
                           </td>
-                          <td className="py-2 px-3 border-r border-slate-300 font-black text-blue-900">
-                            {er.role.includes('Sukan') ? 'Majlis Pembangunan Sukan Sekolah' : 'Jawatankuasa Pengurusan Kokurikulum Sekolah'}
+                          <td className="py-2 px-3 font-semibold border-r border-slate-300 text-slate-900">
+                            {row.bidang}
                           </td>
-                          <td className="py-2 px-3 text-center font-black">
-                            <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 border border-blue-300 text-xs">
-                              {er.role} ({er.session})
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-
-                      {/* Penyelaras Unit Besar (Jika Ada) */}
-                      {teacherCoords.map((tc, idx) => (
-                        <tr key={`coord-${tc.id || idx}`} className="bg-purple-50/70 font-semibold">
-                          <td className="py-2 px-3 text-center font-black border-r border-slate-300 text-purple-900">⭐</td>
-                          <td className="py-2 px-3 font-bold border-r border-slate-300 text-purple-950">
-                            Penyelaras Unit Besar
-                          </td>
-                          <td className="py-2 px-3 border-r border-slate-300 font-black text-purple-900">
-                            {getCategoryTitle(tc.category)}
-                          </td>
-                          <td className="py-2 px-3 text-center font-black">
-                            <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-300 text-xs">
-                              {tc.roleTitle || 'Penyelaras'} ({tc.session})
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-
-                      {/* 1. Beruniform */}
-                      <tr>
-                        <td className="py-2 px-3 text-center font-bold border-r border-slate-300">1</td>
-                        <td className="py-2 px-3 font-semibold border-r border-slate-300">Pasukan Badan Beruniform</td>
-                        <td className="py-2 px-3 border-r border-slate-300 font-bold text-emerald-950">
-                          {beruniform ? (unitMap.get(beruniform.unitId)?.name || '-') : <span className="text-slate-400 italic">Tiada Agihan</span>}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {beruniform ? (
-                            <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              {beruniform.role}
-                            </span>
-                          ) : '-'}
-                        </td>
-                      </tr>
-
-                      {/* 2. Kelab & Persatuan */}
-                      <tr>
-                        <td className="py-2 px-3 text-center font-bold border-r border-slate-300">2</td>
-                        <td className="py-2 px-3 font-semibold border-r border-slate-300">Kelab &amp; Persatuan</td>
-                        <td className="py-2 px-3 border-r border-slate-300 font-bold text-blue-950">
-                          {kelab ? (unitMap.get(kelab.unitId)?.name || '-') : <span className="text-slate-400 italic">Tiada Agihan</span>}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {kelab ? (
-                            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200">
-                              {kelab.role}
-                            </span>
-                          ) : '-'}
-                        </td>
-                      </tr>
-
-                      {/* 3. Sukan & Permainan */}
-                      <tr>
-                        <td className="py-2 px-3 text-center font-bold border-r border-slate-300">3</td>
-                        <td className="py-2 px-3 font-semibold border-r border-slate-300">Sukan &amp; Permainan</td>
-                        <td className="py-2 px-3 border-r border-slate-300 font-bold text-amber-950">
-                          {sukan ? (unitMap.get(sukan.unitId)?.name || '-') : <span className="text-slate-400 italic">Tiada Agihan</span>}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {sukan ? (
-                            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                              {sukan.role}
-                            </span>
-                          ) : '-'}
-                        </td>
-                      </tr>
-
-                      {/* 4. Rumah Sukan */}
-                      <tr>
-                        <td className="py-2 px-3 text-center font-bold border-r border-slate-300">4</td>
-                        <td className="py-2 px-3 font-semibold border-r border-slate-300">Rumah Sukan</td>
-                        <td className="py-2 px-3 border-r border-slate-300 font-bold text-rose-950">
-                          {rumahSukan ? (unitMap.get(rumahSukan.unitId)?.name || '-') : <span className="text-slate-400 italic">Tiada Agihan</span>}
-                        </td>
-                        <td className="py-2 px-3 text-center font-bold">
-                          {rumahSukan ? (
-                            <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-800 border border-rose-200">
-                              {rumahSukan.role}
-                            </span>
-                          ) : '-'}
-                        </td>
-                      </tr>
-
-                      {/* 5. Tugas Pembangunan & Khas (Jika Ada) */}
-                      {pembangunan.length > 0 && pembangunan.map((p, idx) => (
-                        <tr key={p.id}>
-                          <td className="py-2 px-3 text-center font-bold border-r border-slate-300">{5 + idx}</td>
-                          <td className="py-2 px-3 font-semibold border-r border-slate-300">Tugas Khas / Pembangunan</td>
-                          <td className="py-2 px-3 border-r border-slate-300 font-bold text-purple-950">
-                            {unitMap.get(p.unitId)?.name || '-'}
+                          <td className="py-2 px-3 border-r border-slate-300 font-bold text-slate-900">
+                            {row.unitName === 'Tiada Agihan' ? (
+                              <span className="text-slate-400 italic font-normal">Tiada Agihan</span>
+                            ) : (
+                              row.unitName
+                            )}
                           </td>
                           <td className="py-2 px-3 text-center font-bold">
-                            <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200">
-                              {p.role}
-                            </span>
+                            {row.role === '-' ? (
+                              <span className="text-slate-400 font-normal">-</span>
+                            ) : (
+                              <span className={`px-2 py-0.5 rounded text-xs inline-block ${
+                                row.isManagement 
+                                  ? 'bg-amber-100 text-amber-950 border border-amber-300 font-black' 
+                                  : 'bg-slate-100 text-slate-800 border border-slate-200'
+                              }`}>
+                                {row.role}
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -396,9 +391,10 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                   4. Pelantikan ini berkuat kuasa sepanjang sesi persekolahan <b>{settings.academicYear || '2026/2027'}</b> sehingga dimaklumkan kelak. Segala kerjasama dan komitmen tuan/puan didahului dengan ucapan setinggi-tinggi terima kasih.
                 </p>
 
-                <p className="pt-2 font-bold">
-                  "BERKHIDMAT UNTUK NEGARA"
-                </p>
+                <div className="pt-2 font-bold font-sans text-xs space-y-0.5 text-black">
+                  <p>"MALAYSIA MADANI"</p>
+                  <p>"BERKHIDMAT UNTUK NEGARA"</p>
+                </div>
               </div>
             </div>
 

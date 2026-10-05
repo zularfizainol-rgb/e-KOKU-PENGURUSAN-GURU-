@@ -618,9 +618,52 @@ export const Navbar: React.FC<NavbarProps> = ({
                       type="text"
                       value={tempSettings.schoolName}
                       onChange={e => setTempSettings({ ...tempSettings, schoolName: e.target.value })}
-                      placeholder="Contoh: SK TAMAN INDAH"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Contoh: SEKOLAH KEBANGSAAN AU KERAMAT"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 uppercase"
                     />
+                  </div>
+
+                  {/* Alamat Sekolah */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 flex items-center justify-between">
+                      <span>Alamat Sekolah (Untuk Kepala Surat Pelantikan)</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Paparan automatik pada surat</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={tempSettings.schoolAddress || ''}
+                      onChange={e => setTempSettings({ ...tempSettings, schoolAddress: e.target.value })}
+                      placeholder="Contoh: JALAN 5/56 AU3, 54200 KUALA LUMPUR"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 uppercase resize-none font-sans"
+                    />
+                  </div>
+
+                  {/* No Telefon & Email Sekolah */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                        No. Telefon Sekolah
+                      </label>
+                      <input
+                        type="text"
+                        value={tempSettings.schoolPhone || ''}
+                        onChange={e => setTempSettings({ ...tempSettings, schoolPhone: e.target.value })}
+                        placeholder="Contoh: 03-41079639"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                        Email Rasmi Sekolah
+                      </label>
+                      <input
+                        type="email"
+                        value={tempSettings.schoolEmail || ''}
+                        onChange={e => setTempSettings({ ...tempSettings, schoolEmail: e.target.value })}
+                        placeholder="Contoh: wba0053@moe.edu.my"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 font-mono lowercase"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -633,7 +676,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         value={tempSettings.schoolCode}
                         onChange={e => setTempSettings({ ...tempSettings, schoolCode: e.target.value })}
                         placeholder="Contoh: WBA0001"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 uppercase"
                       />
                     </div>
                     <div>
