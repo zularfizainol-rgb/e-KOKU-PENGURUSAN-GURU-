@@ -630,16 +630,26 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
 
       {/* Control Bar: Search, Filters & Action Buttons */}
       <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl shadow-xs border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5">
-        {/* Search Input */}
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        {/* Search Input - Diperbesarkan untuk kemudahan guru menaip dan mencari */}
+        <div className="relative flex-1 min-w-[280px] lg:min-w-[380px]">
+          <Search className="w-5 h-5 absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Cari nama guru..."
-            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 text-slate-900 dark:text-white font-medium focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            placeholder="Taip nama guru, nombor fail/KP, atau unit..."
+            className="w-full pl-11 sm:pl-12 pr-10 py-3 sm:py-3.5 text-sm sm:text-base rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-800/90 text-slate-900 dark:text-white font-semibold placeholder:font-normal placeholder:text-slate-400 focus:outline-hidden focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/15 shadow-xs transition-all"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-black transition-colors cursor-pointer"
+              title="Kosongkan carian"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Filter Controls & Action Buttons */}
