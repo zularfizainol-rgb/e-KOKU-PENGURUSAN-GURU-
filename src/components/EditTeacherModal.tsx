@@ -158,7 +158,7 @@ export const EditTeacherModal: React.FC<EditTeacherModalProps> = ({
                   type="text"
                   value={customGrade}
                   onChange={e => setCustomGrade(e.target.value)}
-                  placeholder="Taip gred jawatan (cth: DG34/DG7 atau DG40)"
+                  placeholder="Taip gred jawatan (cth: DG7, DG40, dll)"
                   className="mt-1.5 w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-900 dark:text-white text-xs"
                 />
               )}

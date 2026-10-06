@@ -33,9 +33,11 @@ export const TEACHER_SERVICE_GRADES: ServiceGradeOption[] = [
   { value: 'DG48/DG12', ssm: 'DG48', sspa: 'DG12', label: 'DG48/DG12', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Kanan)' },
   { value: 'DG52/DG13', ssm: 'DG52', sspa: 'DG13', label: 'DG52/DG13', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Kanan Lanjutan)' },
   { value: 'DG54/DG14', ssm: 'DG54', sspa: 'DG14', label: 'DG54/DG14', description: 'Pegawai Perkhidmatan Pendidikan Siswazah (Gred Utama)' },
+  { value: 'DG7', ssm: 'DG34', sspa: 'DG7', label: 'DG7', description: 'Pegawai Perkhidmatan Pendidikan Gred DG7 (SSPA / Setaraf DG34)' },
   { value: 'DG34/DG7', ssm: 'DG34', sspa: 'DG7', label: 'DG34/DG7', description: 'Pegawai Perkhidmatan Pendidikan Lepasan Diploma' },
   { value: 'DG32/DG6', ssm: 'DG32', sspa: 'DG6', label: 'DG32/DG6', description: 'Pegawai Perkhidmatan Pendidikan Lepasan Diploma' },
   { value: 'DG29/DG6', ssm: 'DG29', sspa: 'DG6', label: 'DG29/DG6', description: 'Pegawai Perkhidmatan Pendidikan Lepasan Diploma (Permulaan)' },
+  { value: 'DG6', ssm: 'DG29', sspa: 'DG6', label: 'DG6', description: 'Pegawai Perkhidmatan Pendidikan Gred DG6 (SSPA / Setaraf DG29/DG32)' },
   { value: 'DC41/DC9', ssm: 'DC41', sspa: 'DC9', label: 'DC41/DC9', description: 'Guru Kontrak / COS Siswazah' },
 ];
 
