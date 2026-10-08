@@ -631,20 +631,20 @@ export const MasterTableView: React.FC<MasterTableViewProps> = ({
       {/* Control Bar: Search, Filters & Action Buttons */}
       <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl shadow-xs border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5">
         {/* Search Input - Diperbesarkan untuk kemudahan guru menaip dan mencari */}
-        <div className="relative flex-1 min-w-[280px] lg:min-w-[380px]">
-          <Search className="w-5 h-5 absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <div className="relative flex-1 min-w-[300px] md:min-w-[420px] lg:min-w-[500px]">
+          <Search className="w-5 h-5 sm:w-5.5 sm:h-5.5 absolute left-4 sm:left-4.5 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Taip nama guru, nombor fail/KP, atau unit..."
-            className="w-full pl-11 sm:pl-12 pr-10 py-3 sm:py-3.5 text-sm sm:text-base rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-800/90 text-slate-900 dark:text-white font-semibold placeholder:font-normal placeholder:text-slate-400 focus:outline-hidden focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/15 shadow-xs transition-all"
+            placeholder="Cari nama guru, no. KP / fail, atau unit kokurikulum..."
+            className="w-full pl-12 sm:pl-13 pr-11 py-3.5 sm:py-4 text-sm sm:text-base rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold placeholder:font-normal placeholder:text-slate-400 focus:outline-hidden focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/15 shadow-sm transition-all"
           />
           {searchTerm && (
             <button
               type="button"
               onClick={() => setSearchTerm('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-black transition-colors cursor-pointer"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-black transition-colors cursor-pointer"
               title="Kosongkan carian"
             >
               ✕

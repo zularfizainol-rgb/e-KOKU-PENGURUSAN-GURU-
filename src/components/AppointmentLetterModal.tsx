@@ -50,12 +50,7 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
     });
   });
   const [refNumber, setRefNumber] = useState<string>(() => {
-    if (settings.schoolCode === 'WBA0053' || settings.schoolName?.toUpperCase().includes('AU KERAMAT')) {
-      return 'SKAUK';
-    }
-    const code = settings.schoolCode || 'KOKU';
-    const year = settings.academicYear ? settings.academicYear.split('/')[0].trim() : new Date().getFullYear();
-    return `${code}/600-4/1/1(${year})`;
+    return 'wba0053.700-3/1/1 (   )';
   });
 
   if (!isOpen) return null;
@@ -248,9 +243,9 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                       {settings.schoolName || 'SEKOLAH KEBANGSAAN AU KERAMAT'}
                     </h1>
 
-                    <div className="flex justify-between items-start text-xs leading-snug">
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between text-xs gap-2 leading-snug">
                       {/* Alamat Sekolah */}
-                      <div className="font-bold text-slate-900 uppercase whitespace-pre-line max-w-[62%]">
+                      <div className="font-bold text-slate-900 uppercase whitespace-pre-line">
                         {settings.schoolAddress ? (
                           settings.schoolAddress
                         ) : (
@@ -261,21 +256,29 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                         )}
                       </div>
 
-                      {/* No. Tel & Email Sekolah */}
-                      <div className="text-right font-medium text-xs space-y-0.5 shrink-0 pl-3">
-                        <div className="font-bold">
-                          <span className="inline-block text-left">No. <span className="underline">Tel</span> :</span>{' '}
-                          <span className="font-sans font-bold">{settings.schoolPhone || '03-41079639'}</span>
-                        </div>
-                        <div className="font-bold">
-                          <span className="inline-block text-left">Email <span className="underline">&nbsp;</span> :</span>{' '}
-                          <a 
-                            href={`mailto:${settings.schoolEmail || 'wba0053@moe.edu.my'}`} 
-                            className="text-blue-700 underline font-sans"
-                          >
-                            {settings.schoolEmail || 'wba0053@moe.edu.my'}
-                          </a>
-                        </div>
+                      {/* No. Tel di atas, Emel di bawah, selari tepat */}
+                      <div className="text-left sm:text-right font-medium text-xs shrink-0 whitespace-nowrap">
+                        <table className="inline-table text-left border-collapse">
+                          <tbody>
+                            <tr>
+                              <td className="font-bold pr-1 py-0.5 text-slate-900">No. Tel</td>
+                              <td className="font-bold px-1 py-0.5 text-slate-900">:</td>
+                              <td className="font-sans font-bold py-0.5 text-slate-900 pl-1">{settings.schoolPhone || '03-41079639'}</td>
+                            </tr>
+                            <tr>
+                              <td className="font-bold pr-1 py-0.5 text-slate-900">Emel</td>
+                              <td className="font-bold px-1 py-0.5 text-slate-900">:</td>
+                              <td className="py-0.5 pl-1">
+                                <a 
+                                  href={`mailto:${settings.schoolEmail || 'wba0053@moe.edu.my'}`} 
+                                  className="text-blue-700 underline font-sans font-semibold"
+                                >
+                                  {settings.schoolEmail || 'wba0053@moe.edu.my'}
+                                </a>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>
@@ -298,8 +301,8 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                       type="text"
                       value={refNumber}
                       onChange={(e) => setRefNumber(e.target.value)}
-                      className="font-bold text-xs text-right bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-slate-800 focus:outline-hidden px-1 py-0.5 max-w-[200px] print:border-none print:p-0"
-                      title="Klik untuk sunting No. Rujukan"
+                      className="font-bold text-xs text-right bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-slate-800 focus:outline-hidden px-1 py-0.5 min-w-[230px] max-w-[280px] print:border-none print:p-0"
+                      title="Klik untuk sunting No. Rujukan mengikut format KPM"
                     />
                   </div>
                   <div className="flex items-center justify-end gap-1.5 font-bold">
