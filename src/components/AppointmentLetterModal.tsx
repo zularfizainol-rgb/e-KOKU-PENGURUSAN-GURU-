@@ -57,6 +57,14 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
 
   const effectiveSchoolLogo = settings.schoolLogo || settings.schoolLogoUrl;
 
+  const rawPhone = settings.schoolPhone;
+  const isInvalidPhone = !rawPhone || rawPhone.length > 25 || /aplikasi|google|bukan/i.test(rawPhone);
+  const effectivePhone = isInvalidPhone ? '03-41079639' : rawPhone;
+
+  const rawEmail = settings.schoolEmail;
+  const isInvalidEmail = !rawEmail || rawEmail.length > 50 || /aplikasi|google/i.test(rawEmail) || !rawEmail.includes('@');
+  const effectiveEmail = isInvalidEmail ? 'wba0053@moe.edu.my' : rawEmail;
+
   // Active teacher
   const currentTeacher = allTeachers.find(t => t.id === (selectedTeacherId || teacher?.id)) || teacher || allTeachers[0];
   if (!currentTeacher) return null;
@@ -246,10 +254,10 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                       {settings.schoolName || 'SEKOLAH KEBANGSAAN AU KERAMAT'}
                     </h1>
 
-                    <div className="flex flex-row items-end justify-between text-xs gap-3 leading-snug">
+                    <div className="flex flex-row items-end justify-between text-xs gap-4 leading-snug">
                       {/* Alamat Sekolah */}
-                      <div className="font-bold text-slate-900 uppercase whitespace-pre-line">
-                        {settings.schoolAddress ? (
+                      <div className="font-bold text-slate-900 uppercase whitespace-pre-line min-w-[220px]">
+                        {settings.schoolAddress && !settings.schoolAddress.toLowerCase().includes('google') ? (
                           settings.schoolAddress
                         ) : (
                           <>
@@ -266,17 +274,17 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                             <tr>
                               <td className="font-bold pr-1 py-0.5 text-slate-900">No. Tel</td>
                               <td className="font-bold px-1 py-0.5 text-slate-900">:</td>
-                              <td className="font-sans font-bold py-0.5 text-slate-900 pl-1">{settings.schoolPhone || '03-41079639'}</td>
+                              <td className="font-sans font-bold py-0.5 text-slate-900 pl-1">{effectivePhone}</td>
                             </tr>
                             <tr>
                               <td className="font-bold pr-1 py-0.5 text-slate-900">Emel</td>
                               <td className="font-bold px-1 py-0.5 text-slate-900">:</td>
                               <td className="py-0.5 pl-1">
                                 <a 
-                                  href={`mailto:${settings.schoolEmail || 'wba0053@moe.edu.my'}`} 
+                                  href={`mailto:${effectiveEmail}`} 
                                   className="text-blue-700 underline font-sans font-semibold"
                                 >
-                                  {settings.schoolEmail || 'wba0053@moe.edu.my'}
+                                  {effectiveEmail}
                                 </a>
                               </td>
                             </tr>
@@ -299,7 +307,7 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                 </div>
                 <div className="text-right space-y-1">
                   <div className="flex items-center justify-end gap-1.5 font-bold">
-                    <span>Ruj <span className="underline">Kami</span> :</span>
+                    <span>Ruj. Kami :</span>
                     <span className="hidden print:inline font-bold text-xs">{refNumber}</span>
                     <input
                       type="text"
@@ -310,7 +318,7 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                     />
                   </div>
                   <div className="flex items-center justify-end gap-1.5 font-bold">
-                    <span>Tarikh <span className="underline">&nbsp;</span> :</span>
+                    <span>Tarikh :</span>
                     <span className="hidden print:inline font-bold text-xs">{letterDate}</span>
                     <input
                       type="text"

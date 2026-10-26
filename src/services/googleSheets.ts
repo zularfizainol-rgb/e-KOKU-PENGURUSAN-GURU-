@@ -943,26 +943,30 @@ export function parseRawSheetData(
       const val = String(row[1] || '').trim();
       if (!val) return;
 
-      if (key.includes('sekolah:') || key === 'sekolah') {
+      if (key === 'sekolah:' || key === 'sekolah' || key === 'nama sekolah:' || key === 'nama sekolah') {
         schoolSettings.schoolName = val;
-      } else if (key.includes('kod sekolah')) {
+      } else if (key.startsWith('kod sekolah')) {
         schoolSettings.schoolCode = val;
-      } else if (key.includes('tahun akademik')) {
+      } else if (key.startsWith('tahun akademik')) {
         schoolSettings.academicYear = val;
-      } else if (key.includes('gpk kokurikulum')) {
+      } else if (key.startsWith('gpk kokurikulum')) {
         schoolSettings.gpkKokuName = val;
-      } else if (key.includes('pengetua') || key.includes('guru besar')) {
+      } else if (key.startsWith('pengetua') || key.startsWith('guru besar')) {
         schoolSettings.principalName = val;
-      } else if (key.includes('alamat')) {
+      } else if (key === 'alamat:' || key === 'alamat' || key.startsWith('alamat sekolah')) {
         schoolSettings.schoolAddress = val;
-      } else if (key.includes('telefon') || key.includes('tel') || key.includes('phone')) {
-        schoolSettings.schoolPhone = val;
-      } else if (key.includes('email') || key.includes('emel')) {
-        schoolSettings.schoolEmail = val;
-      } else if (key.includes('negeri')) {
+      } else if (key === 'no. telefon:' || key === 'no. tel:' || key === 'no. telefon' || key === 'no tel' || key === 'telefon:' || key === 'telefon') {
+        if (!val.toLowerCase().includes('google') && !val.toLowerCase().includes('aplikasi') && val.length < 30) {
+          schoolSettings.schoolPhone = val;
+        }
+      } else if (key === 'email:' || key === 'emel:' || key === 'email' || key === 'emel' || key.startsWith('e-mel') || key.startsWith('emel rasmi')) {
+        if (!val.toLowerCase().includes('google') && !val.toLowerCase().includes('aplikasi') && val.includes('@')) {
+          schoolSettings.schoolEmail = val;
+        }
+      } else if (key === 'negeri:' || key === 'negeri') {
         schoolSettings.schoolState = val;
         schoolSettings.state = val;
-      } else if (key.includes('daerah') || key.includes('ppd')) {
+      } else if (key.startsWith('daerah') || key.startsWith('ppd')) {
         schoolSettings.district = val;
       } else if (key.includes('logo sekolah part 1') || key.includes('logo sekolah (data):') || key === 'logo sekolah') {
         logoPart1 = val;

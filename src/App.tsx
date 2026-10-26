@@ -61,6 +61,37 @@ const getInitialCloudData = (): InitialDataShape | null => {
   return null;
 };
 
+const sanitizeSchoolSettings = (raw?: Partial<SchoolSettings> | null): SchoolSettings => {
+  const merged: SchoolSettings = {
+    ...DEFAULT_SCHOOL_SETTINGS,
+    ...(raw || {}),
+  };
+  // Sanitize corrupted telephone string (e.g. from guide text matching bug)
+  if (!merged.schoolPhone || merged.schoolPhone.length > 25 || /aplikasi|google|bukan/i.test(merged.schoolPhone)) {
+    merged.schoolPhone = '03-41079639';
+  }
+  // Sanitize corrupted email string
+  if (!merged.schoolEmail || merged.schoolEmail.length > 50 || /aplikasi|google/i.test(merged.schoolEmail) || !merged.schoolEmail.includes('@')) {
+    merged.schoolEmail = 'wba0053@moe.edu.my';
+  }
+  // Sanitize school name
+  if (!merged.schoolName || merged.schoolName === 'SEKOLAH SAYA' || /aplikasi|google/i.test(merged.schoolName)) {
+    merged.schoolName = 'SEKOLAH KEBANGSAAN AU KERAMAT';
+  }
+  // Sanitize principal name
+  if (!merged.principalName || merged.principalName === 'Pengetua / Guru Besar') {
+    merged.principalName = 'EN ZULKAIMI BIN MUHAMMAD';
+  }
+  // Sanitize address
+  if (!merged.schoolAddress || /aplikasi|google/i.test(merged.schoolAddress)) {
+    merged.schoolAddress = 'JALAN 5/56 AU3\n54200 KUALA LUMPUR';
+  }
+  const logo = merged.schoolLogo || merged.schoolLogoUrl || DEFAULT_SCHOOL_SETTINGS.schoolLogo;
+  merged.schoolLogo = logo;
+  merged.schoolLogoUrl = logo;
+  return merged;
+};
+
 export default function App() {
   const initialData = getInitialCloudData();
 
@@ -137,32 +168,19 @@ export default function App() {
   });
 
   const [settings, setSettings] = useState<SchoolSettings>(() => {
-    if (initialData?.settings && initialData.settings.schoolName) {
-      const s = initialData.settings;
-      const logo = s.schoolLogo || s.schoolLogoUrl;
-      return { 
-        ...DEFAULT_SCHOOL_SETTINGS, 
-        ...s,
-        schoolLogo: logo,
-        schoolLogoUrl: logo,
-      };
+    if (initialData?.settings) {
+      return sanitizeSchoolSettings(initialData.settings);
     }
     const saved = localStorage.getItem('ekoku_settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const logo = parsed.schoolLogo || parsed.schoolLogoUrl;
-        return {
-          ...DEFAULT_SCHOOL_SETTINGS,
-          ...parsed,
-          schoolLogo: logo,
-          schoolLogoUrl: logo,
-        };
+        return sanitizeSchoolSettings(parsed);
       } catch (e) {
         console.warn('Gagal membaca ekoku_settings tempatan:', e);
       }
     }
-    return DEFAULT_SCHOOL_SETTINGS;
+    return sanitizeSchoolSettings(null);
   });
 
   const [sheetId, setSheetId] = useState<string>(() => {
@@ -407,16 +425,13 @@ export default function App() {
               try { localStorage.setItem('ekoku_executive_leaders', JSON.stringify(cloudExecs)); } catch {}
             }
             if (cloudSettings) {
-              const cloudLogo = cloudSettings.schoolLogo || cloudSettings.schoolLogoUrl;
               setSettings(prev => {
-                const merged = {
+                const sanitized = sanitizeSchoolSettings({
                   ...prev,
                   ...cloudSettings,
-                  schoolLogo: cloudLogo || prev.schoolLogo || prev.schoolLogoUrl,
-                  schoolLogoUrl: cloudLogo || prev.schoolLogoUrl || prev.schoolLogo,
-                };
-                try { localStorage.setItem('ekoku_settings', JSON.stringify(merged)); } catch {}
-                return merged;
+                });
+                try { localStorage.setItem('ekoku_settings', JSON.stringify(sanitized)); } catch {}
+                return sanitized;
               });
             }
             if (cloudSheetId) {
@@ -530,20 +545,16 @@ export default function App() {
             } catch {}
           }
 
-          // Gabungkan tetapan sekolah dengan SELAMAT - Jangan sekali-kali memadam logo sekolah yang sedia ada!
           if (data.schoolSettings) {
-            const sheetLogo = data.schoolSettings.schoolLogo || data.schoolSettings.schoolLogoUrl;
             setSettings(prev => {
-              const merged = { 
-                ...prev, 
+              const sanitized = sanitizeSchoolSettings({
+                ...prev,
                 ...data.schoolSettings,
-                schoolLogo: sheetLogo || prev.schoolLogo || prev.schoolLogoUrl,
-                schoolLogoUrl: sheetLogo || prev.schoolLogoUrl || prev.schoolLogo,
-              };
+              });
               try {
-                localStorage.setItem('ekoku_settings', JSON.stringify(merged));
+                localStorage.setItem('ekoku_settings', JSON.stringify(sanitized));
               } catch {}
-              return merged;
+              return sanitized;
             });
           }
 
