@@ -11,13 +11,30 @@
 }
 
 @media print {
-  body {
-    background-color: white !important;
-    color: black !important;
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 10mm 12mm;
   }
+
+  html, body {
+    background-color: white !important;
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .no-print {
     display: none !important;
   }
+
+  /* When printing the appointment letter modal, hide all other app content in #root */
+  body:has(#appointment-letter-modal) > #root > div > *:not(#appointment-letter-modal) {
+    display: none !important;
+  }
+
   .page-break-inside-avoid {
     break-inside: avoid;
     page-break-inside: avoid;

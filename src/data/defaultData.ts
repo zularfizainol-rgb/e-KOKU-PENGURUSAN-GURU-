@@ -1,16 +1,19 @@
 import { Teacher, KokuUnit, UnitAssignment, SchoolSettings } from '../types/koku';
+import { DEFAULT_SCHOOL_LOGO } from './schoolLogo';
 
 export const DEFAULT_SCHOOL_SETTINGS: SchoolSettings = {
-  schoolName: 'SEKOLAH SAYA',
-  schoolCode: 'KOD_SEKOLAH',
+  schoolName: 'SEKOLAH KEBANGSAAN AU KERAMAT',
+  schoolCode: 'WBA0053',
   academicYear: '2026/2027',
-  principalName: 'Pengetua / Guru Besar',
-  gpkKokuName: 'Encik Zularfi bin Zainol',
-  state: '',
-  district: '',
+  principalName: 'EN ZULKAIMI BIN MUHAMMAD',
+  gpkKokuName: 'EN FATHIYAKAN BIN ASMARA',
+  state: 'KUALA LUMPUR',
+  district: 'KERAMAT',
   schoolAddress: 'JALAN 5/56 AU3\n54200 KUALA LUMPUR',
   schoolPhone: '03-41079639',
   schoolEmail: 'wba0053@moe.edu.my',
+  schoolLogo: DEFAULT_SCHOOL_LOGO,
+  schoolLogoUrl: DEFAULT_SCHOOL_LOGO,
 };
 
 export const DEFAULT_UNITS: KokuUnit[] = [

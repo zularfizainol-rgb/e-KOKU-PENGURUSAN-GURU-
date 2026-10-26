@@ -158,8 +158,11 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full h-[95vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+    <div 
+      id="appointment-letter-modal"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs print:static print:inset-auto print:z-auto print:p-0 print:m-0 print:bg-white print:backdrop-blur-none print:block print:w-full print:h-auto"
+    >
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full h-[95vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden print:border-none print:shadow-none print:rounded-none print:max-w-none print:w-full print:h-auto print:overflow-visible print:bg-white">
         
         {/* Header Bar (Hidden during print) */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/80 no-print shrink-0">
@@ -172,7 +175,7 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                 Surat Pelantikan Tugas Kokurikulum
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Jana dan cetak surat pelantikan rasmi bagi tahun persekolahan {settings.academicYear}
+                Jana dan cetak surat pelantikan rasmi bagi tahun persekolahan {settings.academicYear || '2026/2027'}
               </p>
             </div>
           </div>
@@ -214,8 +217,8 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
         </div>
 
         {/* Printable Letter Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100 dark:bg-slate-950 flex justify-center">
-          <div className="w-full max-w-[210mm] bg-white text-slate-900 p-8 sm:p-12 shadow-lg border border-slate-200 min-h-[297mm] flex flex-col justify-between font-serif text-[13px] leading-relaxed">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100 dark:bg-slate-950 flex justify-center print:overflow-visible print:p-0 print:m-0 print:bg-white print:block print:w-full">
+          <div className="w-full max-w-[210mm] bg-white text-slate-900 p-8 sm:p-12 shadow-lg border border-slate-200 min-h-[297mm] flex flex-col justify-between font-serif text-[13px] leading-relaxed print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none print:w-full print:min-h-0">
             
             {/* Top Section */}
             <div>
@@ -243,7 +246,7 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                       {settings.schoolName || 'SEKOLAH KEBANGSAAN AU KERAMAT'}
                     </h1>
 
-                    <div className="flex flex-col sm:flex-row sm:items-end justify-between text-xs gap-2 leading-snug">
+                    <div className="flex flex-row items-end justify-between text-xs gap-3 leading-snug">
                       {/* Alamat Sekolah */}
                       <div className="font-bold text-slate-900 uppercase whitespace-pre-line">
                         {settings.schoolAddress ? (
@@ -257,7 +260,7 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                       </div>
 
                       {/* No. Tel di atas, Emel di bawah, selari tepat */}
-                      <div className="text-left sm:text-right font-medium text-xs shrink-0 whitespace-nowrap">
+                      <div className="text-right font-medium text-xs shrink-0 whitespace-nowrap">
                         <table className="inline-table text-left border-collapse">
                           <tbody>
                             <tr>
@@ -297,21 +300,23 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
                 <div className="text-right space-y-1">
                   <div className="flex items-center justify-end gap-1.5 font-bold">
                     <span>Ruj <span className="underline">Kami</span> :</span>
+                    <span className="hidden print:inline font-bold text-xs">{refNumber}</span>
                     <input
                       type="text"
                       value={refNumber}
                       onChange={(e) => setRefNumber(e.target.value)}
-                      className="font-bold text-xs text-right bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-slate-800 focus:outline-hidden px-1 py-0.5 min-w-[230px] max-w-[280px] print:border-none print:p-0"
+                      className="print:hidden font-bold text-xs text-right bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-slate-800 focus:outline-none px-1 py-0.5 min-w-[230px] max-w-[280px]"
                       title="Klik untuk sunting No. Rujukan mengikut format KPM"
                     />
                   </div>
                   <div className="flex items-center justify-end gap-1.5 font-bold">
                     <span>Tarikh <span className="underline">&nbsp;</span> :</span>
+                    <span className="hidden print:inline font-bold text-xs">{letterDate}</span>
                     <input
                       type="text"
                       value={letterDate}
                       onChange={(e) => setLetterDate(e.target.value)}
-                      className="font-bold text-xs text-right bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-slate-800 focus:outline-hidden px-1 py-0.5 max-w-[180px] print:border-none print:p-0"
+                      className="print:hidden font-bold text-xs text-right bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-slate-800 focus:outline-none px-1 py-0.5 max-w-[180px]"
                       title="Klik untuk sunting Tarikh Surat"
                     />
                   </div>
@@ -406,9 +411,9 @@ export const AppointmentLetterModal: React.FC<AppointmentLetterModalProps> = ({
               <div>
                 <p className="text-slate-500 mb-1">Saya yang menjalankan amanah,</p>
                 <div className="h-14 border-b border-dashed border-slate-400 mb-2"></div>
-                <p className="font-black uppercase text-slate-900">{settings.principalName || 'PENGETUA / GURU BESAR'}</p>
+                <p className="font-black uppercase text-slate-900">{settings.principalName || 'EN ZULKAIMI BIN MUHAMMAD'}</p>
                 <p className="text-slate-600 font-medium">Pengetua / Guru Besar</p>
-                <p className="text-slate-500">{settings.schoolName}</p>
+                <p className="text-slate-500">{settings.schoolName || 'SEKOLAH KEBANGSAAN AU KERAMAT'}</p>
               </div>
 
               <div>
