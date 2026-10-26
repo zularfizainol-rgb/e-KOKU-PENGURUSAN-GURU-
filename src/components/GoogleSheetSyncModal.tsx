@@ -758,6 +758,36 @@ export const GoogleSheetSyncModal: React.FC<GoogleSheetSyncModalProps> = ({
                     </button>
                   </div>
                 )}
+
+                {statusMessage.text.includes('kebenaran Editor') && (
+                  <div className="pt-2 mt-1 border-t border-rose-200/80 dark:border-rose-900/60 flex flex-col gap-2">
+                    <p className="text-[11px] text-rose-700 dark:text-rose-300 font-semibold">
+                      Tindakan pantas untuk selesaikan isu ini:
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleCreateNewSheet}
+                        disabled={isLoading || !googleUser}
+                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>1. Cipta Sheet Baharu di Drive Anda</span>
+                      </button>
+                      {sheetUrl && (
+                        <a
+                          href={sheetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-[11px] flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                          <span>2. Buka Sheet (Share &gt; Editor)</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
